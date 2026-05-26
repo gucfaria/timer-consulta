@@ -1,0 +1,1192 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0f1115">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Timer">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<title>Timer de Consulta</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+  :root {
+    --bg: #0f1115;
+    --panel: #171a21;
+    --panel-2: #1d212b;
+    --line: #2a2f3a;
+    --text: #e8eaed;
+    --muted: #8a909e;
+    --ring-track: #1c2030;
+    --green: #2ecc71;
+    --blue: #3aa0ff;
+    --amber: #f5c542;
+    --red: #ff4d4d;
+    --over: #ff7849;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+
+  body {
+    background: radial-gradient(1200px 800px at 50% -10%, #1a1e27 0%, var(--bg) 55%);
+    color: var(--text);
+    font-family: 'IBM Plex Mono', monospace;
+    display: flex;
+    min-height: 100vh;
+    min-height: -webkit-fill-available;
+    overflow: hidden;
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .stage {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    position: relative;
+    transition: background 0.4s ease;
+  }
+
+  .phase-name {
+    font-family: 'Fraunces', serif;
+    font-size: clamp(24px, 4vw, 52px);
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+    text-align: center;
+    transition: color 0.4s ease;
+  }
+  .phase-sub {
+    font-size: 12px;
+    color: var(--muted);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 22px;
+  }
+
+  .dial-wrap {
+    position: relative;
+    width: min(60vh, 76vw, 580px);
+    aspect-ratio: 1;
+    /* cursor changes when dragging */
+    touch-action: none;
+  }
+  .dial-wrap.dragging { cursor: grabbing; }
+
+  .dial-wrap svg {
+    width: 100%; height: 100%;
+    display: block;
+    transform: rotate(-90deg);
+    overflow: visible;
+  }
+
+  /* hit-area ring for drag — invisible wide stroke */
+  #dragRing {
+    cursor: grab;
+    pointer-events: stroke;
+  }
+  #dragRing:active { cursor: grabbing; }
+
+  .center-readout {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+  }
+
+  .time-big {
+    font-size: clamp(44px, 8.5vw, 100px);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+    letter-spacing: 1px;
+    transition: color 0.4s ease;
+  }
+  .time-label {
+    font-size: 12px;
+    color: var(--muted);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    margin-top: 10px;
+  }
+  .phase-clock {
+    font-size: 14px;
+    color: var(--muted);
+    margin-top: 14px;
+    font-variant-numeric: tabular-nums;
+  }
+  .phase-clock b { color: var(--text); font-weight: 600; }
+
+  /* drag hint */
+  .drag-hint {
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 1px;
+    margin-top: 8px;
+    opacity: 0;
+    transition: opacity 0.4s;
+    pointer-events: none;
+  }
+  .drag-hint.visible { opacity: 1; }
+
+  .controls {
+    margin-top: 26px;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+
+  button {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 14px;
+    font-weight: 500;
+    letter-spacing: 0.5px;
+    color: var(--text);
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 12px 20px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  button:hover { background: #262b37; border-color: #3a4150; }
+  button:active { transform: translateY(1px); }
+
+  .btn-primary {
+    background: var(--green);
+    color: #07130c;
+    border-color: transparent;
+    font-weight: 600;
+  }
+  .btn-primary:hover { background: #34d97a; }
+  .btn-primary.paused { background: var(--amber); color: #1a1400; }
+  .btn-primary.paused:hover { background: #ffd25a; }
+
+  .btn-popup {
+    padding: 12px 14px;
+    font-size: 16px;
+    color: var(--muted);
+  }
+  .btn-popup:hover { color: var(--text); }
+
+  .legend {
+    position: absolute;
+    top: 24px; left: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .legend-item.active { color: var(--text); }
+  .swatch {
+    width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0;
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  .legend-item.active .swatch {
+    transform: scale(1.4);
+    box-shadow: 0 0 0 3px rgba(255,255,255,0.08);
+  }
+
+  .settings-toggle {
+    position: absolute;
+    top: 24px; right: 24px;
+    background: var(--panel-2);
+    width: 42px; height: 42px;
+    padding: 0;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 10px;
+  }
+
+  /* ─── Settings panel ─────────────────────────────────────── */
+  .panel {
+    position: fixed;
+    top: 0; right: 0;
+    width: 0;
+    height: 100vh;
+    overflow: hidden;
+    background: var(--panel);
+    border-left: 1px solid var(--line);
+    transition: width 0.3s cubic-bezier(.4,0,.2,1);
+    z-index: 100;
+  }
+  .panel.open { width: min(380px, 100vw); }
+  .panel-inner {
+    width: min(380px, 100vw);
+    height: 100vh;
+    overflow-y: auto;
+    padding: 28px 26px;
+  }
+  .panel h2 {
+    font-family: 'Fraunces', serif;
+    font-size: 22px;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+  .panel .hint {
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 20px;
+    line-height: 1.5;
+  }
+  .field { margin-bottom: 16px; }
+  .field label {
+    display: block;
+    font-size: 11px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin-bottom: 7px;
+  }
+  .field input[type="text"],
+  .field input[type="number"] {
+    width: 100%;
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    color: var(--text);
+    padding: 10px 12px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 14px;
+  }
+  .field input:focus { outline: none; border-color: var(--blue); }
+
+  .phase-row {
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 14px;
+    margin-bottom: 10px;
+  }
+  .phase-row-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+  .phase-row-head input[type="color"] {
+    -webkit-appearance: none; appearance: none;
+    width: 28px; height: 28px;
+    border: none; border-radius: 8px;
+    background: none; cursor: pointer; padding: 0; flex-shrink: 0;
+  }
+  .phase-row-head input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+  .phase-row-head input[type="color"]::-webkit-color-swatch { border: none; border-radius: 8px; }
+  .phase-row-head input[type="text"] {
+    flex: 1;
+    background: transparent; border: none;
+    color: var(--text);
+    font-family: 'Fraunces', serif;
+    font-size: 16px; font-weight: 600;
+    padding: 4px 0;
+  }
+  .phase-row-head input[type="text"]:focus { outline: none; }
+  .del-btn {
+    background: transparent; border: none;
+    color: var(--muted); font-size: 18px;
+    padding: 4px 8px; cursor: pointer;
+  }
+  .del-btn:hover { color: var(--red); background: transparent; }
+  .dur-control { display: flex; align-items: center; gap: 10px; }
+  .dur-control label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+  .dur-control input {
+    width: 64px;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    color: var(--text);
+    padding: 8px 10px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 14px;
+    text-align: center;
+  }
+  .dur-control input:focus { outline: none; border-color: var(--blue); }
+  .dur-control .unit { font-size: 12px; color: var(--muted); }
+  .add-phase { width: 100%; border-style: dashed; color: var(--muted); margin-top: 4px; }
+  .add-phase:hover { color: var(--text); }
+  .total-line {
+    display: flex; justify-content: space-between;
+    font-size: 13px;
+    padding: 14px 2px 4px;
+    border-top: 1px solid var(--line);
+    margin-top: 8px;
+  }
+  .total-line span:last-child { font-weight: 600; font-variant-numeric: tabular-nums; }
+  .section-divider { border: none; border-top: 1px solid var(--line); margin: 20px 0 18px; }
+  .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; }
+  .toggle-row label { font-size: 13px; color: var(--text); text-transform: none; letter-spacing: 0; margin: 0; }
+  .switch { position: relative; width: 44px; height: 24px; flex-shrink: 0; }
+  .switch input { display: none; }
+  .switch .slider { position: absolute; inset: 0; background: var(--line); border-radius: 24px; transition: background 0.2s; }
+  .switch .slider::before {
+    content: ''; position: absolute;
+    width: 18px; height: 18px; left: 3px; top: 3px;
+    background: var(--text); border-radius: 50%; transition: transform 0.2s;
+  }
+  .switch input:checked + .slider { background: var(--green); }
+  .switch input:checked + .slider::before { transform: translateX(20px); }
+
+  .stage.overrun { background: radial-gradient(1200px 800px at 50% -10%, #2a1410 0%, var(--bg) 55%); }
+  .stage.overrun-hard { animation: hardpulse 1s ease-in-out infinite; }
+  @keyframes hardpulse {
+    0%,100% { background: radial-gradient(1200px 800px at 50% -10%, #2a1410 0%, var(--bg) 55%); }
+    50%      { background: radial-gradient(1200px 800px at 50% -10%, #5a1a12 0%, var(--bg) 55%); }
+  }
+  .flash { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; }
+  .flash.fire { animation: flashfade 0.45s ease-out; }
+  @keyframes flashfade { 0% { opacity: 0.45; } 100% { opacity: 0; } }
+
+  /* backdrop behind panel */
+  .panel-backdrop {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.45);
+    z-index: 99;
+  }
+  .panel-backdrop.visible { display: block; }
+
+  @media (max-width: 720px) {
+    .legend { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="stage" id="stage">
+  <div class="flash" id="flash"></div>
+  <div class="legend" id="legend"></div>
+
+  <button class="settings-toggle" id="settingsToggle" title="Configurações">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="transform:none">
+      <circle cx="12" cy="12" r="3"/>
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+    </svg>
+  </button>
+
+  <div class="phase-name" id="phaseName">Pronto</div>
+  <div class="phase-sub"  id="phaseSub">Inicie quando estiver pronto</div>
+
+  <div class="dial-wrap" id="dialWrap">
+    <svg viewBox="0 0 200 200" id="svg" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <!-- glow filter for the hub -->
+        <filter id="hubGlow" x="-80%" y="-80%" width="260%" height="260%">
+          <feGaussianBlur in="SourceGraphic" stdDeviation="3.5" result="blur"/>
+          <feMerge>
+            <feMergeNode in="blur"/>
+            <feMergeNode in="SourceGraphic"/>
+          </feMerge>
+        </filter>
+      </defs>
+
+      <!-- track -->
+      <circle cx="100" cy="100" r="80" fill="none" stroke="var(--ring-track)" stroke-width="28"/>
+
+      <!-- phase background arcs -->
+      <g id="bgArcs"></g>
+
+      <!-- Time-Timer sweeps (remaining per phase) -->
+      <g id="sweeps"></g>
+
+      <!-- phase boundary ticks -->
+      <g id="ticks"></g>
+
+      <!-- overrun ring -->
+      <circle id="overRing" cx="100" cy="100" r="80" fill="none"
+              stroke="var(--red)" stroke-width="28" stroke-linecap="butt"
+              stroke-dasharray="502.65" stroke-dashoffset="502.65" opacity="0"/>
+
+      <!-- drag hit area (invisible wide ring) -->
+      <circle id="dragRing" cx="100" cy="100" r="80" fill="none"
+              stroke="transparent" stroke-width="44"/>
+
+      <!-- hub: glow halo + white dot -->
+      <circle id="hubGlow"  cx="100" cy="12" r="10" fill="white" opacity="0.25" filter="url(#hubGlow)"/>
+      <circle id="hubDot"   cx="100" cy="12" r="5.5" fill="white" stroke="#0f1115" stroke-width="1.5"/>
+    </svg>
+
+    <div class="center-readout">
+      <div class="time-big"    id="timeBig">50:00</div>
+      <div class="time-label"  id="timeLabel">Total restante</div>
+      <div class="phase-clock" id="phaseClock"></div>
+      <div class="drag-hint"   id="dragHint">⟳ arraste para ajustar</div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button class="btn-primary" id="startBtn">Iniciar</button>
+    <button id="resetBtn">Reiniciar</button>
+    <button class="btn-popup" id="popupBtn" title="Abrir em janela flutuante">⧉</button>
+  </div>
+</div>
+
+<div class="panel-backdrop" id="panelBackdrop"></div>
+
+<aside class="panel" id="panel">
+  <div class="panel-inner">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+      <h2 style="margin:0">Configurações</h2>
+      <button id="panelClose" style="background:transparent;border:none;color:var(--muted);font-size:22px;padding:4px 8px;cursor:pointer;border-radius:8px;" title="Fechar">×</button>
+    </div>
+    <p class="hint">As fases tocam em sequência. Editável a qualquer momento (exceto rodando).</p>
+    <div id="phaseList"></div>
+    <button class="add-phase" id="addPhase">+ Adicionar fase</button>
+    <div class="total-line">
+      <span>Tempo total</span>
+      <span id="totalDisplay">50 min</span>
+    </div>
+    <hr class="section-divider">
+    <div class="toggle-row">
+      <label>Sinal sonoro nas transições</label>
+      <span class="switch"><input type="checkbox" id="soundOn" checked><span class="slider"></span></span>
+    </div>
+    <div class="toggle-row">
+      <label>Flash visual nas transições</label>
+      <span class="switch"><input type="checkbox" id="flashOn" checked><span class="slider"></span></span>
+    </div>
+    <hr class="section-divider">
+    <div class="field">
+      <label>Aviso de fim</label>
+      <p class="hint" style="margin:0">Ao passar do tempo total o anel fica vermelho e soa um alerta. Após +10 min o alerta se intensifica e a tela pulsa.</p>
+    </div>
+  </div>
+</aside>
+
+<script>
+(function () {
+  "use strict";
+
+  // ─── State sync key ──────────────────────────────────────────
+  const SYNC_KEY = "timerConsulta_state";
+  const IS_POPUP = window.opener !== null;
+
+  // ─── Defaults ────────────────────────────────────────────────
+  const DEFAULTS = [
+    { name: "Abertura",        min: 7,  color: "#2ecc71" },
+    { name: "Desenvolvimento", min: 15, color: "#3aa0ff" },
+    { name: "Exploração",      min: 18, color: "#f5c542" },
+    { name: "Fechamento",      min: 10, color: "#ff4d4d" },
+  ];
+
+  let phases = DEFAULTS.map(p => ({ ...p }));
+  let soundEnabled = true;
+  let flashEnabled = true;
+
+  // ─── Timer state ─────────────────────────────────────────────
+  let running = false;
+  let paused  = false;
+  let elapsedBeforePause = 0; // ms
+  let startEpoch = 0;          // performance.now() reference
+  let rafId = null;
+  let currentPhaseIdx = -1;
+  let overState = 0;
+  let lastOverBeep = 0;
+
+  // SVG geometry (viewBox 200×200, SVG rotated -90°)
+  const R  = 80;
+  const SW = 28;
+  const C  = 2 * Math.PI * R; // ≈ 502.65
+
+  // ─── Elements ────────────────────────────────────────────────
+  const $ = id => document.getElementById(id);
+  const bgArcs   = $("bgArcs");
+  const sweeps   = $("sweeps");
+  const ticks    = $("ticks");
+  const overRing = $("overRing");
+  const hubGlowEl = $("hubGlow");
+  const hubDotEl  = $("hubDot");
+  const timeBig    = $("timeBig");
+  const timeLabel  = $("timeLabel");
+  const phaseName  = $("phaseName");
+  const phaseSub   = $("phaseSub");
+  const phaseClock = $("phaseClock");
+  const dragHint   = $("dragHint");
+  const legend  = $("legend");
+  const stage   = $("stage");
+  const flash   = $("flash");
+  const startBtn  = $("startBtn");
+  const resetBtn  = $("resetBtn");
+  const dialWrap  = $("dialWrap");
+  const svgEl     = $("svg");
+
+  // ─── Audio ───────────────────────────────────────────────────
+  let audioCtx = null;
+  function ensureAudio() {
+    if (!audioCtx) {
+      try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+      catch(e) { audioCtx = null; }
+    }
+    if (audioCtx && audioCtx.state === "suspended") audioCtx.resume();
+  }
+  function beep(freq, dur, when, type, gain) {
+    if (!audioCtx) return;
+    const t0 = audioCtx.currentTime + (when || 0);
+    const osc = audioCtx.createOscillator();
+    const g   = audioCtx.createGain();
+    osc.type = type || "sine";
+    osc.frequency.value = freq;
+    g.gain.setValueAtTime(0, t0);
+    g.gain.linearRampToValueAtTime(gain || 0.25, t0 + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    osc.connect(g); g.connect(audioCtx.destination);
+    osc.start(t0); osc.stop(t0 + dur + 0.02);
+  }
+  function sigTransition() {
+    if (!soundEnabled) return;
+    beep(660, 0.18, 0, "sine", 0.22);
+    beep(880, 0.22, 0.16, "sine", 0.22);
+  }
+  function sigEnter(idx) {
+    if (!soundEnabled) return;
+    const n = Math.min(idx + 1, 4);
+    for (let i = 0; i < n; i++) beep(720, 0.10, i * 0.14, "triangle", 0.20);
+  }
+  function sigOver() {
+    if (!soundEnabled) return;
+    beep(330, 0.30, 0, "sawtooth", 0.18);
+    beep(247, 0.40, 0.10, "sawtooth", 0.18);
+  }
+  function sigOverHard() {
+    if (!soundEnabled) return;
+    beep(180, 0.5, 0, "square", 0.22);
+    beep(140, 0.5, 0.18, "square", 0.22);
+  }
+  function doFlash() {
+    if (!flashEnabled) return;
+    flash.classList.remove("fire");
+    void flash.offsetWidth;
+    flash.classList.add("fire");
+  }
+
+  // ─── Helpers ─────────────────────────────────────────────────
+  function totalSec() { return phases.reduce((s, p) => s + p.min * 60, 0); }
+
+  function phaseBoundaries() {
+    let acc = 0;
+    return phases.map(p => {
+      const start = acc, end = acc + p.min * 60;
+      acc = end;
+      return { ...p, start, end };
+    });
+  }
+
+  function fmt(sec) {
+    sec = Math.max(0, Math.round(sec));
+    return String(Math.floor(sec / 60)).padStart(2, "0") + ":" + String(sec % 60).padStart(2, "0");
+  }
+
+  function currentElapsed() {
+    if (!running) return elapsedBeforePause;
+    return elapsedBeforePause + (performance.now() - startEpoch);
+  }
+
+  // ─── Hub position ─────────────────────────────────────────────
+  // frac = 0..1 of total time. SVG is rotated -90°, so angle 0 = top.
+  function setHubAngle(frac) {
+    const ang = frac * 2 * Math.PI;
+    const cx  = 100 + R * Math.cos(ang);
+    const cy  = 100 + R * Math.sin(ang);
+    hubDotEl.setAttribute("cx",  cx);
+    hubDotEl.setAttribute("cy",  cy);
+    hubGlowEl.setAttribute("cx", cx);
+    hubGlowEl.setAttribute("cy", cy);
+  }
+
+  // ─── Render static rings ──────────────────────────────────────
+  function makeArc(r, strokeW, color, frac0, frac1, opacity) {
+    const el   = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    const circ = 2 * Math.PI * r;
+    const len  = (frac1 - frac0) * circ;
+    el.setAttribute("cx", "100"); el.setAttribute("cy", "100"); el.setAttribute("r", r);
+    el.setAttribute("fill", "none");
+    el.setAttribute("stroke", color);
+    el.setAttribute("stroke-width", strokeW);
+    el.setAttribute("stroke-dasharray", `${len} ${circ - len}`);
+    el.setAttribute("stroke-dashoffset", -frac0 * circ);
+    el.setAttribute("opacity", opacity);
+    el.setAttribute("stroke-linecap", "butt");
+    return el;
+  }
+
+  function renderRings() {
+    bgArcs.innerHTML = "";
+    sweeps.innerHTML = "";
+    ticks.innerHTML  = "";
+
+    const tot    = totalSec();
+    if (tot <= 0) return;
+    const bounds = phaseBoundaries();
+    const GAP    = 0.004;
+
+    bounds.forEach((b, i) => {
+      const f0 = b.start / tot, f1 = b.end / tot;
+      const gs = i > 0                 ? GAP / 2 : 0;
+      const ge = i < bounds.length - 1 ? GAP / 2 : 0;
+
+      bgArcs.appendChild(makeArc(R, SW, b.color, f0 + gs, f1 - ge, 0.18));
+
+      const sweep = makeArc(R, SW, b.color, f0 + gs, f1 - ge, 0);
+      sweep.id = "sweep_" + i;
+      sweeps.appendChild(sweep);
+
+      if (i > 0) {
+        const ang = f0 * 2 * Math.PI;
+        const ri  = R - SW / 2 - 2, ro = R + SW / 2 + 2;
+        const cos = Math.cos(ang), sin = Math.sin(ang);
+        const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        line.setAttribute("x1", 100 + ri * cos); line.setAttribute("y1", 100 + ri * sin);
+        line.setAttribute("x2", 100 + ro * cos); line.setAttribute("y2", 100 + ro * sin);
+        line.setAttribute("stroke", "#0f1115");
+        line.setAttribute("stroke-width", "2.5");
+        ticks.appendChild(line);
+      }
+    });
+  }
+
+  // ─── Animate sweeps ───────────────────────────────────────────
+  function updateSweeps(elapsedSec) {
+    const tot    = totalSec();
+    const bounds = phaseBoundaries();
+    const GAP    = 0.004;
+
+    bounds.forEach((b, i) => {
+      const el = $("sweep_" + i);
+      if (!el) return;
+
+      const f0 = b.start / tot, f1 = b.end / tot;
+      const gs = i > 0                 ? GAP / 2 : 0;
+      const ge = i < bounds.length - 1 ? GAP / 2 : 0;
+      const pf0 = f0 + gs, pf1 = f1 - ge, pfLen = pf1 - pf0;
+
+      if (elapsedSec <= b.start) {
+        // Future: full
+        const len = pfLen * C;
+        el.setAttribute("stroke-dasharray",  `${len} ${C - len}`);
+        el.setAttribute("stroke-dashoffset", -pf0 * C);
+        el.setAttribute("opacity", "0.82");
+      } else if (elapsedSec >= b.end) {
+        // Past: consumed
+        el.setAttribute("stroke-dasharray", `0 ${C}`);
+        el.setAttribute("opacity", "0");
+      } else {
+        // Active: remaining slice shrinks
+        const progress     = (elapsedSec - b.start) / (b.end - b.start);
+        const currentF     = pf0 + pfLen * progress;
+        const remainingLen = (pf1 - currentF) * C;
+        el.setAttribute("stroke-dasharray",  `${remainingLen} ${C - remainingLen}`);
+        el.setAttribute("stroke-dashoffset", -currentF * C);
+        el.setAttribute("opacity", "1");
+      }
+    });
+  }
+
+  // ─── Legend ───────────────────────────────────────────────────
+  function renderLegend() {
+    legend.innerHTML = "";
+    phaseBoundaries().forEach((b, i) => {
+      const item = document.createElement("div");
+      item.className = "legend-item";
+      item.innerHTML =
+        `<span class="swatch" style="background:${b.color}"></span>` +
+        `<span>${b.name} · ${b.min} min</span>`;
+      legend.appendChild(item);
+    });
+  }
+
+  function highlightLegend(idx) {
+    [...legend.children].forEach((c, i) => c.classList.toggle("active", i === idx));
+  }
+
+  // ─── Display update (called each tick and also on scrub) ───────
+  function updateDisplay(elapsedSec) {
+    const tot    = totalSec();
+    const bounds = phaseBoundaries();
+    const over   = elapsedSec >= tot;
+
+    updateSweeps(over ? tot : elapsedSec);
+
+    if (!over) {
+      const idx = bounds.findIndex(b => elapsedSec < b.end);
+      const b   = bounds[idx];
+
+      if (idx !== currentPhaseIdx) {
+        currentPhaseIdx = idx;
+        if (!isDragging) onEnterPhase(idx, b);
+        else highlightLegend(idx);
+      }
+
+      phaseName.textContent = b.name;
+      phaseName.style.color = b.color;
+      phaseSub.textContent  = `Fase ${idx + 1} de ${bounds.length}`;
+      timeBig.textContent   = fmt(b.end - elapsedSec);
+      timeBig.style.color   = b.color;
+      timeLabel.textContent = "Restante nesta fase";
+      phaseClock.innerHTML  = `Total restante <b>${fmt(tot - elapsedSec)}</b>`;
+
+      setHubAngle(elapsedSec / tot);
+      hubDotEl.setAttribute("r", "5.5");
+      hubGlowEl.setAttribute("r", "10");
+
+      overRing.setAttribute("opacity", "0");
+      stage.classList.remove("overrun", "overrun-hard");
+      overState = 0;
+
+    } else {
+      const overSec = elapsedSec - tot;
+      const hard    = overSec >= 600;
+
+      currentPhaseIdx = bounds.length;
+      phaseName.textContent = hard ? "Atraso significativo" : "Tempo esgotado";
+      phaseName.style.color = hard ? "#fff" : "var(--red)";
+      phaseSub.textContent  = hard ? "Mais de 10 min além do previsto" : "Encerrar a consulta";
+      timeBig.textContent   = "+" + fmt(overSec);
+      timeBig.style.color   = hard ? "#fff" : "var(--over)";
+      timeLabel.textContent = "Além do tempo total";
+      phaseClock.innerHTML  = "";
+
+      const overFrac = Math.min(overSec / 600, 1);
+      const overLen  = overFrac * C;
+      overRing.setAttribute("stroke",           hard ? "#fff" : "var(--red)");
+      overRing.setAttribute("stroke-dasharray", `${overLen} ${C - overLen}`);
+      overRing.setAttribute("stroke-dashoffset", "0");
+      overRing.setAttribute("opacity", "0.85");
+
+      // Hub stays at 12 o'clock (top = angle 0 in SVG, which is rotated -90°)
+      setHubAngle(0);
+      hubDotEl.setAttribute("fill",   hard ? "#fff" : "var(--over)");
+      hubDotEl.setAttribute("r", "5.5");
+
+      const newState = hard ? 2 : 1;
+      if (!isDragging && newState !== overState) {
+        overState = newState;
+        if (newState === 1) { stage.classList.add("overrun");      doFlash(); sigOver();     lastOverBeep = elapsedSec; }
+        if (newState === 2) { stage.classList.add("overrun-hard"); doFlash(); sigOverHard(); lastOverBeep = elapsedSec; }
+      }
+      if (!isDragging) {
+        const interval = hard ? 15 : 30;
+        if (elapsedSec - lastOverBeep >= interval) {
+          lastOverBeep = elapsedSec;
+          hard ? sigOverHard() : sigOver();
+          doFlash();
+        }
+      }
+    }
+  }
+
+  // ─── Tick ─────────────────────────────────────────────────────
+  function tick() {
+    const elapsedSec = currentElapsed() / 1000;
+    updateDisplay(elapsedSec);
+    broadcastState();
+    if (running) rafId = requestAnimationFrame(tick);
+  }
+
+  function onEnterPhase(idx, b) {
+    if (idx > 0) sigTransition();
+    sigEnter(idx);
+    doFlash();
+    highlightLegend(idx);
+  }
+
+  // ─── Controls ─────────────────────────────────────────────────
+  function start() {
+    ensureAudio();
+    if (totalSec() <= 0) return;
+    running = true; paused = false;
+    startEpoch = performance.now();
+    startBtn.textContent = "Pausar";
+    startBtn.classList.remove("paused");
+    currentPhaseIdx = -1; overState = 0; lastOverBeep = 0;
+    closePanel();
+    cancelAnimationFrame(rafId);
+    rafId = requestAnimationFrame(tick);
+  }
+  function pause() {
+    running = false; paused = true;
+    elapsedBeforePause = currentElapsed();
+    cancelAnimationFrame(rafId);
+    startBtn.textContent = "Retomar";
+    startBtn.classList.add("paused");
+    broadcastState();
+  }
+  function resume() {
+    ensureAudio();
+    running = true; paused = false;
+    startEpoch = performance.now();
+    startBtn.textContent = "Pausar";
+    startBtn.classList.remove("paused");
+    rafId = requestAnimationFrame(tick);
+  }
+  function reset() {
+    running = false; paused = false;
+    elapsedBeforePause = 0;
+    cancelAnimationFrame(rafId);
+    currentPhaseIdx = -1; overState = 0; lastOverBeep = 0;
+    stage.classList.remove("overrun", "overrun-hard");
+    startBtn.textContent = "Iniciar";
+    startBtn.classList.remove("paused");
+    hubDotEl.setAttribute("fill", "white");
+
+    const tot = totalSec();
+    timeBig.textContent   = fmt(tot);
+    timeBig.style.color   = "var(--text)";
+    timeLabel.textContent = "Total restante";
+    phaseName.textContent = "Pronto";
+    phaseName.style.color = "var(--text)";
+    phaseSub.textContent  = "Inicie quando estiver pronto";
+    phaseClock.innerHTML  = "";
+    overRing.setAttribute("opacity", "0");
+    hubDotEl.setAttribute("r", "0");
+    hubGlowEl.setAttribute("r", "0");
+
+    updateSweeps(0);
+    highlightLegend(-1);
+    broadcastState();
+  }
+
+  startBtn.addEventListener("click", () => {
+    if (!running && !paused) start();
+    else if (running) pause();
+    else if (paused) resume();
+  });
+  resetBtn.addEventListener("click", reset);
+
+  document.addEventListener("keydown", e => {
+    if (e.code === "Space") { e.preventDefault(); startBtn.click(); }
+    else if (e.key === "r" || e.key === "R") reset();
+    else if (e.key === "f" || e.key === "F") toggleFullscreen();
+  });
+  function toggleFullscreen() {
+    if (!document.fullscreenElement) document.documentElement.requestFullscreen?.();
+    else document.exitFullscreen?.();
+  }
+
+  // ─── Drag-to-scrub ────────────────────────────────────────────
+  let isDragging = false;
+  let wasRunning = false;
+
+  function getAngleFrac(e) {
+    // Get pointer position relative to SVG center in SVG coordinates
+    const rect    = svgEl.getBoundingClientRect();
+    const cx      = rect.left + rect.width  / 2;
+    const cy      = rect.top  + rect.height / 2;
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    // SVG is rotated -90°, so we need to account for that
+    // In screen space: top = -90° offset, so rotate pointer by +90° back
+    const dx = clientX - cx;
+    const dy = clientY - cy;
+    // angle in normal math coords (0 = right), then rotate +90° for our -90° SVG
+    let ang = Math.atan2(dy, dx) + Math.PI / 2;
+    if (ang < 0) ang += 2 * Math.PI;
+    return ang / (2 * Math.PI); // 0..1
+  }
+
+  function onDragStart(e) {
+    // Only start drag if clicking near the ring
+    const rect    = svgEl.getBoundingClientRect();
+    const scale   = rect.width / 200;
+    const cx      = rect.left + rect.width  / 2;
+    const cy      = rect.top  + rect.height / 2;
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    const dx = clientX - cx, dy = clientY - cy;
+    const dist = Math.sqrt(dx*dx + dy*dy) / scale; // in SVG units
+    if (dist < R - SW/2 - 4 || dist > R + SW/2 + 10) return; // outside ring
+
+    e.preventDefault();
+    isDragging = true;
+    wasRunning = running;
+    if (running) {
+      elapsedBeforePause = currentElapsed();
+      running = false;
+      cancelAnimationFrame(rafId);
+    }
+    dialWrap.classList.add("dragging");
+    dragHint.classList.add("visible");
+    onDragMove(e);
+  }
+
+  function onDragMove(e) {
+    if (!isDragging) return;
+    e.preventDefault();
+    const frac       = getAngleFrac(e);
+    const tot        = totalSec();
+    const newElapsed = frac * tot * 1000; // ms
+    elapsedBeforePause = newElapsed;
+    // Reset phase tracking so transitions fire correctly on resume
+    currentPhaseIdx = -1;
+    updateDisplay(newElapsed / 1000);
+  }
+
+  function onDragEnd(e) {
+    if (!isDragging) return;
+    isDragging = false;
+    dialWrap.classList.remove("dragging");
+    dragHint.classList.remove("visible");
+    // Resume if was running
+    if (wasRunning) {
+      startEpoch = performance.now();
+      running = true;
+      rafId = requestAnimationFrame(tick);
+    } else {
+      broadcastState();
+    }
+  }
+
+  // Mouse events
+  $("dragRing").addEventListener("mousedown",  onDragStart);
+  hubDotEl.addEventListener("mousedown",        onDragStart);
+  hubGlowEl.addEventListener("mousedown",       onDragStart);
+  document.addEventListener("mousemove",        onDragMove);
+  document.addEventListener("mouseup",          onDragEnd);
+  // Touch events
+  $("dragRing").addEventListener("touchstart",  onDragStart, { passive: false });
+  hubDotEl.addEventListener("touchstart",       onDragStart, { passive: false });
+  document.addEventListener("touchmove",        onDragMove,  { passive: false });
+  document.addEventListener("touchend",         onDragEnd);
+
+  // Show hint on hover near ring (desktop only)
+  dialWrap.addEventListener("mousemove", e => {
+    const rect  = svgEl.getBoundingClientRect();
+    const scale = rect.width / 200;
+    const cx    = rect.left + rect.width  / 2;
+    const cy    = rect.top  + rect.height / 2;
+    const dx = e.clientX - cx, dy = e.clientY - cy;
+    const dist = Math.sqrt(dx*dx + dy*dy) / scale;
+    const near = (dist >= R - SW/2 - 4 && dist <= R + SW/2 + 10);
+    dragHint.classList.toggle("visible", near);
+  });
+  dialWrap.addEventListener("mouseleave", () => {
+    if (!isDragging) dragHint.classList.remove("visible");
+  });
+
+  // ─── State broadcast via localStorage ─────────────────────────
+  // Popup and main window stay in sync through storage events.
+  let suppressStorageEvent = false;
+
+  function broadcastState() {
+    if (suppressStorageEvent) return;
+    const state = {
+      running,
+      paused,
+      elapsedMs:   currentElapsed(),
+      startEpoch,  // absolute performance.now() — won't map cross-window, use elapsedMs
+      phases:      JSON.parse(JSON.stringify(phases)),
+      soundEnabled,
+      flashEnabled,
+      ts:          Date.now(),
+    };
+    suppressStorageEvent = true;
+    try { localStorage.setItem(SYNC_KEY, JSON.stringify(state)); }
+    catch(e) {}
+    suppressStorageEvent = false;
+  }
+
+  function applyState(state) {
+    if (!state) return;
+    // Phases
+    if (state.phases && JSON.stringify(state.phases) !== JSON.stringify(phases)) {
+      phases = state.phases;
+      renderAll();
+    }
+    soundEnabled = state.soundEnabled ?? true;
+    flashEnabled = state.flashEnabled ?? true;
+
+    // Timer position
+    const ageMs = Date.now() - state.ts;
+    let restoredElapsed = state.elapsedMs;
+    if (state.running) restoredElapsed += ageMs; // account for time since broadcast
+
+    running = false; // we'll restart below if needed
+    paused  = state.paused;
+    elapsedBeforePause = restoredElapsed;
+    cancelAnimationFrame(rafId);
+    currentPhaseIdx = -1;
+    updateDisplay(restoredElapsed / 1000);
+
+    if (state.running) {
+      startEpoch = performance.now();
+      running = true;
+      startBtn.textContent = "Pausar";
+      startBtn.classList.remove("paused");
+      rafId = requestAnimationFrame(tick);
+    } else if (state.paused) {
+      startBtn.textContent = "Retomar";
+      startBtn.classList.add("paused");
+    } else {
+      startBtn.textContent = "Iniciar";
+      startBtn.classList.remove("paused");
+    }
+  }
+
+  // Listen for changes from the other window
+  window.addEventListener("storage", e => {
+    if (e.key !== SYNC_KEY || suppressStorageEvent) return;
+    try {
+      const state = JSON.parse(e.newValue);
+      applyState(state);
+    } catch(err) {}
+  });
+
+  // If this is a popup, load current state immediately
+  if (IS_POPUP) {
+    try {
+      const raw = localStorage.getItem(SYNC_KEY);
+      if (raw) applyState(JSON.parse(raw));
+    } catch(e) {}
+  }
+
+  // ─── Pop-up button ────────────────────────────────────────────
+  $("popupBtn").addEventListener("click", () => {
+    broadcastState();
+    const html = document.documentElement.outerHTML;
+    const blob = new Blob([html], { type: "text/html" });
+    const url  = URL.createObjectURL(blob);
+    const w = window.open(
+      url,
+      "TimerConsulta",
+      "width=430,height=540,resizable=yes,scrollbars=no,toolbar=no,menubar=no,location=no,status=no"
+    );
+    if (!w) alert("Permita pop-ups para este site nas configurações do navegador.");
+  });
+
+  // ─── Settings panel ───────────────────────────────────────────
+  const panel   = $("panel");
+  const backdrop = $("panelBackdrop");
+
+  function openPanel()  { panel.classList.add("open");    backdrop.classList.add("visible");    }
+  function closePanel() { panel.classList.remove("open"); backdrop.classList.remove("visible"); }
+
+  $("settingsToggle").addEventListener("click", () => panel.classList.contains("open") ? closePanel() : openPanel());
+  $("panelClose").addEventListener("click", closePanel);
+  backdrop.addEventListener("click", closePanel);
+
+  $("soundOn").addEventListener("change", e => { soundEnabled = e.target.checked; broadcastState(); });
+  $("flashOn").addEventListener("change", e => { flashEnabled = e.target.checked; broadcastState(); });
+
+  function renderPhaseEditor() {
+    const list = $("phaseList");
+    list.innerHTML = "";
+    phases.forEach((p, i) => {
+      const row = document.createElement("div");
+      row.className = "phase-row";
+      row.innerHTML =
+        `<div class="phase-row-head">
+          <input type="color" value="${p.color}" data-i="${i}" data-k="color">
+          <input type="text"  value="${p.name.replace(/"/g,'&quot;')}" data-i="${i}" data-k="name">
+          ${phases.length > 1 ? `<button class="del-btn" data-del="${i}">×</button>` : ""}
+        </div>
+        <div class="dur-control">
+          <label>Duração</label>
+          <input type="number" min="1" max="180" value="${p.min}" data-i="${i}" data-k="min">
+          <span class="unit">min</span>
+        </div>`;
+      list.appendChild(row);
+    });
+    $("totalDisplay").textContent = phases.reduce((s, p) => s + Number(p.min), 0) + " min";
+
+    list.querySelectorAll("input").forEach(inp => {
+      inp.addEventListener("input", e => {
+        const i = +e.target.dataset.i, k = e.target.dataset.k;
+        if (k === "min") phases[i].min = Math.max(1, Number(e.target.value) || 1);
+        else phases[i][k] = e.target.value;
+        if (k !== "name") { renderRings(); renderLegend(); }
+        $("totalDisplay").textContent = phases.reduce((s, p) => s + Number(p.min), 0) + " min";
+        if (!running && !paused) reset();
+        broadcastState();
+      });
+    });
+    list.querySelectorAll("[data-del]").forEach(btn => {
+      btn.addEventListener("click", e => {
+        phases.splice(+e.target.dataset.del, 1);
+        renderAll();
+        if (!running && !paused) reset();
+        broadcastState();
+      });
+    });
+  }
+
+  $("addPhase").addEventListener("click", () => {
+    const palette = ["#9b5de5","#00bbf9","#00f5d4","#fee440","#f15bb5"];
+    phases.push({ name: "Nova fase", min: 5, color: palette[phases.length % palette.length] });
+    renderAll();
+    if (!running && !paused) reset();
+    broadcastState();
+  });
+
+  function renderAll() {
+    renderRings();
+    renderLegend();
+    renderPhaseEditor();
+  }
+
+
+  // ─── Wake Lock ────────────────────────────────────────────────
+  let wakeLock = null;
+
+  async function requestWakeLock() {
+    if (!('wakeLock' in navigator)) return;
+    try {
+      wakeLock = await navigator.wakeLock.request('screen');
+      wakeLock.addEventListener('release', () => { wakeLock = null; });
+    } catch(e) {}
+  }
+
+  function releaseWakeLock() {
+    if (wakeLock) { wakeLock.release(); wakeLock = null; }
+  }
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && running) requestWakeLock();
+  });
+
+  // Intercept start/pause/resume/reset to manage wake lock
+  const _origStart  = start;
+  const _origPause  = pause;
+  const _origResume = resume;
+  const _origReset  = reset;
+
+  start  = function() { _origStart();  requestWakeLock(); };
+  resume = function() { _origResume(); requestWakeLock(); };
+  pause  = function() { _origPause();  releaseWakeLock(); };
+  reset  = function() { _origReset();  releaseWakeLock(); };
+
+  // Re-wire buttons to use updated references
+  startBtn.onclick = () => {
+    if (!running && !paused) start();
+    else if (running) pause();
+    else if (paused) resume();
+  };
+  resetBtn.onclick = reset;
+
+  // ─── Service Worker ───────────────────────────────────────────
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js').catch(() => {});
+    });
+  }
+
+  // ─── Init ────────────────────────────────────────────────────
+  renderAll();
+  reset();
+})();
+</script>
+</body>
+</html>
