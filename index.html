@@ -998,25 +998,22 @@
   });
 
   // ─── State broadcast via localStorage ─────────────────────────
-  // Popup and main window stay in sync through storage events.
-  let suppressStorageEvent = false;
+  // Use a unique ID per window to ignore own storage events
+  const WINDOW_ID = Math.random().toString(36).slice(2);
 
   function broadcastState() {
-    if (suppressStorageEvent) return;
     const state = {
       running,
       paused,
       elapsedMs:   currentElapsed(),
-      startEpoch,  // absolute performance.now() — won't map cross-window, use elapsedMs
       phases:      JSON.parse(JSON.stringify(phases)),
       soundEnabled,
       flashEnabled,
       ts:          Date.now(),
+      from: WINDOW_ID,
     };
-    suppressStorageEvent = true;
     try { localStorage.setItem(SYNC_KEY, JSON.stringify(state)); }
     catch(e) {}
-    suppressStorageEvent = false;
   }
 
   function applyState(state) {
@@ -1028,6 +1025,10 @@
     }
     soundEnabled = state.soundEnabled ?? true;
     flashEnabled = state.flashEnabled ?? true;
+    // Sync checkboxes visually
+    const soundEl = $("soundOn"), flashEl = $("flashOn");
+    if (soundEl) soundEl.checked = soundEnabled;
+    if (flashEl) flashEl.checked = flashEnabled;
 
     // Timer position
     const ageMs = Date.now() - state.ts;
@@ -1056,11 +1057,12 @@
     }
   }
 
-  // Listen for changes from the other window
+  // Listen for changes from the other window (ignore own writes)
   window.addEventListener("storage", e => {
-    if (e.key !== SYNC_KEY || suppressStorageEvent) return;
+    if (e.key !== SYNC_KEY) return;
     try {
       const state = JSON.parse(e.newValue);
+      if (state.from === WINDOW_ID) return; // own write, ignore
       applyState(state);
     } catch(err) {}
   });
