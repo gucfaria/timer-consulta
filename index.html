@@ -12,358 +12,293 @@
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <title>Timer de Consulta</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
 
-  :root {
-    --bg: #0f1115;
-    --panel: #171a21;
-    --panel-2: #1d212b;
-    --line: #2a2f3a;
-    --text: #e8eaed;
-    --muted: #8a909e;
-    --ring-track: #1c2030;
-    --green: #2ecc71;
-    --blue: #3aa0ff;
-    --amber: #f5c542;
-    --red: #ff4d4d;
-    --over: #ff7849;
-  }
+:root {
+  --bg: #0f1115;
+  --panel: #171a21;
+  --panel-2: #1d212b;
+  --line: #2a2f3a;
+  --text: #e8eaed;
+  --muted: #8a909e;
+  --ring-track: #1c2030;
+  --green: #2ecc71;
+  --blue: #3aa0ff;
+  --amber: #f5c542;
+  --red: #ff4d4d;
+  --over: #ff7849;
+}
 
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body { height: 100%; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
 
-  body {
-    background: radial-gradient(1200px 800px at 50% -10%, #1a1e27 0%, var(--bg) 55%);
-    color: var(--text);
-    font-family: 'IBM Plex Mono', monospace;
-    display: flex;
-    min-height: 100vh;
-    min-height: -webkit-fill-available;
-    overflow: hidden;
-    padding-top: env(safe-area-inset-top);
-    padding-bottom: env(safe-area-inset-bottom);
-  }
+body {
+  background: radial-gradient(1200px 800px at 50% -10%, #1a1e27 0%, var(--bg) 55%);
+  color: var(--text);
+  font-family: 'IBM Plex Mono', monospace;
+  display: flex;
+  min-height: 100vh;
+  min-height: -webkit-fill-available;
+  overflow: hidden;
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+}
 
-  .stage {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 24px;
-    position: relative;
-    transition: background 0.4s ease;
-  }
+.stage {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  position: relative;
+  transition: background 0.4s ease;
+}
 
-  .phase-name {
-    font-family: 'Fraunces', serif;
-    font-size: clamp(24px, 4vw, 52px);
-    font-weight: 600;
-    letter-spacing: 0.5px;
-    margin-bottom: 4px;
-    text-align: center;
-    transition: color 0.4s ease;
-  }
-  .phase-sub {
-    font-size: 12px;
-    color: var(--muted);
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    margin-bottom: 22px;
-  }
+.phase-name {
+  font-family: 'Fraunces', serif;
+  font-size: clamp(22px, 4vw, 52px);
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+  text-align: center;
+  transition: color 0.4s ease;
+}
+.phase-sub {
+  font-size: 12px;
+  color: var(--muted);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 20px;
+}
 
-  .dial-wrap {
-    position: relative;
-    width: min(60vh, 76vw, 580px);
-    aspect-ratio: 1;
-    /* cursor changes when dragging */
-    touch-action: none;
-  }
-  .dial-wrap.dragging { cursor: grabbing; }
+/* ── Dial ─────────────────────────────────────────────────── */
+.dial-wrap {
+  position: relative;
+  width: min(58vh, 74vw, 560px);
+  aspect-ratio: 1;
+  touch-action: none;
+}
+.dial-wrap.dragging { cursor: grabbing; }
+.dial-wrap svg {
+  width: 100%; height: 100%;
+  display: block;
+  transform: rotate(-90deg);
+  overflow: visible;
+}
+#dragRing { cursor: grab; pointer-events: stroke; }
+#dragRing:active { cursor: grabbing; }
 
-  .dial-wrap svg {
-    width: 100%; height: 100%;
-    display: block;
-    transform: rotate(-90deg);
-    overflow: visible;
-  }
+.center-readout {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  pointer-events: none;
+}
+.time-big {
+  font-size: clamp(42px, 8vw, 96px);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1; letter-spacing: 1px;
+  transition: color 0.4s ease;
+}
+.time-label {
+  font-size: 11px; color: var(--muted);
+  letter-spacing: 3px; text-transform: uppercase; margin-top: 8px;
+}
+.phase-clock {
+  font-size: 13px; color: var(--muted);
+  margin-top: 12px; font-variant-numeric: tabular-nums;
+}
+.phase-clock b { color: var(--text); font-weight: 600; }
+.drag-hint {
+  font-size: 11px; color: var(--muted);
+  letter-spacing: 1px; margin-top: 6px;
+  opacity: 0; transition: opacity 0.3s; pointer-events: none;
+}
+.drag-hint.visible { opacity: 1; }
 
-  /* hit-area ring for drag — invisible wide stroke */
-  #dragRing {
-    cursor: grab;
-    pointer-events: stroke;
-  }
-  #dragRing:active { cursor: grabbing; }
+/* ── Controls ─────────────────────────────────────────────── */
+.controls {
+  margin-top: 22px;
+  display: flex; gap: 10px; align-items: center;
+}
+button {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 14px; font-weight: 500; letter-spacing: 0.5px;
+  color: var(--text); background: var(--panel-2);
+  border: 1px solid var(--line); border-radius: 10px;
+  padding: 12px 20px; cursor: pointer; transition: all 0.15s ease;
+}
+button:hover { background: #262b37; border-color: #3a4150; }
+button:active { transform: translateY(1px); }
+.btn-primary { background: var(--green); color: #07130c; border-color: transparent; font-weight: 600; }
+.btn-primary:hover { background: #34d97a; }
+.btn-primary.paused { background: var(--amber); color: #1a1400; }
+.btn-primary.paused:hover { background: #ffd25a; }
+.btn-icon { padding: 12px 14px; font-size: 16px; color: var(--muted); }
+.btn-icon:hover { color: var(--text); }
 
-  .center-readout {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    pointer-events: none;
-  }
+/* ── Legend ───────────────────────────────────────────────── */
+.legend {
+  position: absolute; top: 24px; left: 24px;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.legend-item { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
+.legend-item.active { color: var(--text); }
+.swatch { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; transition: transform 0.2s, box-shadow 0.2s; }
+.legend-item.active .swatch { transform: scale(1.4); box-shadow: 0 0 0 3px rgba(255,255,255,0.08); }
 
-  .time-big {
-    font-size: clamp(44px, 8.5vw, 100px);
-    font-weight: 600;
-    font-variant-numeric: tabular-nums;
-    line-height: 1;
-    letter-spacing: 1px;
-    transition: color 0.4s ease;
-  }
-  .time-label {
-    font-size: 12px;
-    color: var(--muted);
-    letter-spacing: 3px;
-    text-transform: uppercase;
-    margin-top: 10px;
-  }
-  .phase-clock {
-    font-size: 14px;
-    color: var(--muted);
-    margin-top: 14px;
-    font-variant-numeric: tabular-nums;
-  }
-  .phase-clock b { color: var(--text); font-weight: 600; }
+.settings-toggle {
+  position: absolute; top: 24px; right: 24px;
+  background: var(--panel-2); width: 42px; height: 42px;
+  padding: 0; display: flex; align-items: center; justify-content: center; border-radius: 10px;
+}
 
-  /* drag hint */
-  .drag-hint {
-    font-size: 11px;
-    color: var(--muted);
-    letter-spacing: 1px;
-    margin-top: 8px;
-    opacity: 0;
-    transition: opacity 0.4s;
-    pointer-events: none;
-  }
-  .drag-hint.visible { opacity: 1; }
+/* ── Panel backdrop ───────────────────────────────────────── */
+.panel-backdrop {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,0.45); z-index: 99;
+}
+.panel-backdrop.visible { display: block; }
 
-  .controls {
-    margin-top: 26px;
-    display: flex;
-    gap: 10px;
-    align-items: center;
-  }
+/* ── Settings panel ───────────────────────────────────────── */
+.panel {
+  position: fixed; top: 0; right: 0;
+  width: 0; height: 100vh; overflow: hidden;
+  background: var(--panel); border-left: 1px solid var(--line);
+  transition: width 0.3s cubic-bezier(.4,0,.2,1); z-index: 100;
+}
+.panel.open { width: min(400px, 100vw); }
+.panel-inner { width: min(400px, 100vw); height: 100vh; overflow-y: auto; padding: 24px 22px; }
 
-  button {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 14px;
-    font-weight: 500;
-    letter-spacing: 0.5px;
-    color: var(--text);
-    background: var(--panel-2);
-    border: 1px solid var(--line);
-    border-radius: 10px;
-    padding: 12px 20px;
-    cursor: pointer;
-    transition: all 0.15s ease;
-  }
-  button:hover { background: #262b37; border-color: #3a4150; }
-  button:active { transform: translateY(1px); }
+.panel-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+.panel-header h2 { font-family: 'Fraunces', serif; font-size: 22px; font-weight: 600; }
+.panel-close { background: transparent; border: none; color: var(--muted); font-size: 22px; padding: 4px 8px; cursor: pointer; border-radius: 8px; }
+.panel-close:hover { color: var(--text); background: transparent; }
 
-  .btn-primary {
-    background: var(--green);
-    color: #07130c;
-    border-color: transparent;
-    font-weight: 600;
-  }
-  .btn-primary:hover { background: #34d97a; }
-  .btn-primary.paused { background: var(--amber); color: #1a1400; }
-  .btn-primary.paused:hover { background: #ffd25a; }
+.hint { font-size: 12px; color: var(--muted); margin-bottom: 16px; line-height: 1.5; }
 
-  .btn-popup {
-    padding: 12px 14px;
-    font-size: 16px;
-    color: var(--muted);
-  }
-  .btn-popup:hover { color: var(--text); }
+/* ── Panel tabs ───────────────────────────────────────────── */
+.tab-bar {
+  display: flex; gap: 4px;
+  background: var(--panel-2); border-radius: 10px; padding: 4px;
+  margin-bottom: 20px;
+}
+.tab-btn {
+  flex: 1; font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px; font-weight: 500; letter-spacing: 0.3px;
+  color: var(--muted); background: transparent;
+  border: none; border-radius: 7px; padding: 8px 4px; cursor: pointer;
+  transition: all 0.15s;
+}
+.tab-btn.active { background: var(--panel); color: var(--text); }
+.tab-btn:hover:not(.active) { color: var(--text); }
+.tab-content { display: none; }
+.tab-content.active { display: block; }
 
-  .legend {
-    position: absolute;
-    top: 24px; left: 24px;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-  .legend-item {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 12px;
-    color: var(--muted);
-  }
-  .legend-item.active { color: var(--text); }
-  .swatch {
-    width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0;
-    transition: transform 0.2s, box-shadow 0.2s;
-  }
-  .legend-item.active .swatch {
-    transform: scale(1.4);
-    box-shadow: 0 0 0 3px rgba(255,255,255,0.08);
-  }
+/* ── Presets ──────────────────────────────────────────────── */
+.preset-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+.preset-item {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--panel-2); border: 1px solid var(--line);
+  border-radius: 10px; padding: 10px 12px; cursor: pointer;
+  transition: border-color 0.15s;
+}
+.preset-item:hover { border-color: #3a4150; }
+.preset-item.active-preset { border-color: var(--blue); }
+.preset-info { flex: 1; min-width: 0; }
+.preset-name { font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.preset-meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.preset-dots { display: flex; gap: 3px; margin-top: 5px; }
+.preset-dot { width: 8px; height: 8px; border-radius: 2px; }
+.preset-actions { display: flex; gap: 4px; }
+.preset-btn {
+  background: transparent; border: none; color: var(--muted);
+  font-size: 14px; padding: 4px 6px; cursor: pointer; border-radius: 6px;
+}
+.preset-btn:hover { color: var(--text); background: rgba(255,255,255,0.06); }
+.preset-btn.del:hover { color: var(--red); }
 
-  .settings-toggle {
-    position: absolute;
-    top: 24px; right: 24px;
-    background: var(--panel-2);
-    width: 42px; height: 42px;
-    padding: 0;
-    display: flex; align-items: center; justify-content: center;
-    border-radius: 10px;
-  }
+.save-preset-row { display: flex; gap: 8px; margin-top: 4px; }
+.save-preset-row input {
+  flex: 1; background: var(--panel-2); border: 1px solid var(--line);
+  border-radius: 8px; color: var(--text); padding: 10px 12px;
+  font-family: 'IBM Plex Mono', monospace; font-size: 13px;
+}
+.save-preset-row input:focus { outline: none; border-color: var(--blue); }
+.save-preset-row button { padding: 10px 14px; font-size: 13px; }
 
-  /* ─── Settings panel ─────────────────────────────────────── */
-  .panel {
-    position: fixed;
-    top: 0; right: 0;
-    width: 0;
-    height: 100vh;
-    overflow: hidden;
-    background: var(--panel);
-    border-left: 1px solid var(--line);
-    transition: width 0.3s cubic-bezier(.4,0,.2,1);
-    z-index: 100;
-  }
-  .panel.open { width: min(380px, 100vw); }
-  .panel-inner {
-    width: min(380px, 100vw);
-    height: 100vh;
-    overflow-y: auto;
-    padding: 28px 26px;
-  }
-  .panel h2 {
-    font-family: 'Fraunces', serif;
-    font-size: 22px;
-    font-weight: 600;
-    margin-bottom: 4px;
-  }
-  .panel .hint {
-    font-size: 12px;
-    color: var(--muted);
-    margin-bottom: 20px;
-    line-height: 1.5;
-  }
-  .field { margin-bottom: 16px; }
-  .field label {
-    display: block;
-    font-size: 11px;
-    color: var(--muted);
-    text-transform: uppercase;
-    letter-spacing: 1.5px;
-    margin-bottom: 7px;
-  }
-  .field input[type="text"],
-  .field input[type="number"] {
-    width: 100%;
-    background: var(--panel-2);
-    border: 1px solid var(--line);
-    border-radius: 8px;
-    color: var(--text);
-    padding: 10px 12px;
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 14px;
-  }
-  .field input:focus { outline: none; border-color: var(--blue); }
+/* ── Phase editor ─────────────────────────────────────────── */
+.field { margin-bottom: 14px; }
+.field label { display: block; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 6px; }
+.field input { width: 100%; background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; color: var(--text); padding: 9px 11px; font-family: 'IBM Plex Mono', monospace; font-size: 13px; }
+.field input:focus { outline: none; border-color: var(--blue); }
 
-  .phase-row {
-    background: var(--panel-2);
-    border: 1px solid var(--line);
-    border-radius: 12px;
-    padding: 14px;
-    margin-bottom: 10px;
-  }
-  .phase-row-head {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 10px;
-  }
-  .phase-row-head input[type="color"] {
-    -webkit-appearance: none; appearance: none;
-    width: 28px; height: 28px;
-    border: none; border-radius: 8px;
-    background: none; cursor: pointer; padding: 0; flex-shrink: 0;
-  }
-  .phase-row-head input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
-  .phase-row-head input[type="color"]::-webkit-color-swatch { border: none; border-radius: 8px; }
-  .phase-row-head input[type="text"] {
-    flex: 1;
-    background: transparent; border: none;
-    color: var(--text);
-    font-family: 'Fraunces', serif;
-    font-size: 16px; font-weight: 600;
-    padding: 4px 0;
-  }
-  .phase-row-head input[type="text"]:focus { outline: none; }
-  .del-btn {
-    background: transparent; border: none;
-    color: var(--muted); font-size: 18px;
-    padding: 4px 8px; cursor: pointer;
-  }
-  .del-btn:hover { color: var(--red); background: transparent; }
-  .dur-control { display: flex; align-items: center; gap: 10px; }
-  .dur-control label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
-  .dur-control input {
-    width: 64px;
-    background: var(--bg);
-    border: 1px solid var(--line);
-    border-radius: 8px;
-    color: var(--text);
-    padding: 8px 10px;
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 14px;
-    text-align: center;
-  }
-  .dur-control input:focus { outline: none; border-color: var(--blue); }
-  .dur-control .unit { font-size: 12px; color: var(--muted); }
-  .add-phase { width: 100%; border-style: dashed; color: var(--muted); margin-top: 4px; }
-  .add-phase:hover { color: var(--text); }
-  .total-line {
-    display: flex; justify-content: space-between;
-    font-size: 13px;
-    padding: 14px 2px 4px;
-    border-top: 1px solid var(--line);
-    margin-top: 8px;
-  }
-  .total-line span:last-child { font-weight: 600; font-variant-numeric: tabular-nums; }
-  .section-divider { border: none; border-top: 1px solid var(--line); margin: 20px 0 18px; }
-  .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; }
-  .toggle-row label { font-size: 13px; color: var(--text); text-transform: none; letter-spacing: 0; margin: 0; }
-  .switch { position: relative; width: 44px; height: 24px; flex-shrink: 0; }
-  .switch input { display: none; }
-  .switch .slider { position: absolute; inset: 0; background: var(--line); border-radius: 24px; transition: background 0.2s; }
-  .switch .slider::before {
-    content: ''; position: absolute;
-    width: 18px; height: 18px; left: 3px; top: 3px;
-    background: var(--text); border-radius: 50%; transition: transform 0.2s;
-  }
-  .switch input:checked + .slider { background: var(--green); }
-  .switch input:checked + .slider::before { transform: translateX(20px); }
+.phase-row { background: var(--panel-2); border: 1px solid var(--line); border-radius: 12px; padding: 12px; margin-bottom: 8px; }
+.phase-row-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.phase-row-head input[type="color"] { -webkit-appearance: none; appearance: none; width: 26px; height: 26px; border: none; border-radius: 7px; background: none; cursor: pointer; padding: 0; flex-shrink: 0; }
+.phase-row-head input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+.phase-row-head input[type="color"]::-webkit-color-swatch { border: none; border-radius: 7px; }
+.phase-row-head input[type="text"] { flex: 1; background: transparent; border: none; color: var(--text); font-family: 'Fraunces', serif; font-size: 15px; font-weight: 600; padding: 3px 0; }
+.phase-row-head input[type="text"]:focus { outline: none; }
+.del-btn { background: transparent; border: none; color: var(--muted); font-size: 18px; padding: 3px 7px; cursor: pointer; }
+.del-btn:hover { color: var(--red); background: transparent; }
+.dur-control { display: flex; align-items: center; gap: 8px; }
+.dur-control label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+.dur-control input { width: 60px; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; color: var(--text); padding: 7px 9px; font-family: 'IBM Plex Mono', monospace; font-size: 13px; text-align: center; }
+.dur-control input:focus { outline: none; border-color: var(--blue); }
+.dur-control .unit { font-size: 12px; color: var(--muted); }
 
-  .stage.overrun { background: radial-gradient(1200px 800px at 50% -10%, #2a1410 0%, var(--bg) 55%); }
-  .stage.overrun-hard { animation: hardpulse 1s ease-in-out infinite; }
-  @keyframes hardpulse {
-    0%,100% { background: radial-gradient(1200px 800px at 50% -10%, #2a1410 0%, var(--bg) 55%); }
-    50%      { background: radial-gradient(1200px 800px at 50% -10%, #5a1a12 0%, var(--bg) 55%); }
-  }
-  .flash { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; }
-  .flash.fire { animation: flashfade 0.45s ease-out; }
-  @keyframes flashfade { 0% { opacity: 0.45; } 100% { opacity: 0; } }
+.add-phase { width: 100%; border-style: dashed; color: var(--muted); margin-top: 2px; }
+.add-phase:hover { color: var(--text); }
+.total-line { display: flex; justify-content: space-between; font-size: 13px; padding: 12px 2px 4px; border-top: 1px solid var(--line); margin-top: 6px; }
+.total-line span:last-child { font-weight: 600; font-variant-numeric: tabular-nums; }
 
-  /* backdrop behind panel */
-  .panel-backdrop {
-    display: none;
-    position: fixed; inset: 0;
-    background: rgba(0,0,0,0.45);
-    z-index: 99;
-  }
-  .panel-backdrop.visible { display: block; }
+/* ── Options tab ──────────────────────────────────────────── */
+.section-divider { border: none; border-top: 1px solid var(--line); margin: 18px 0 16px; }
+.toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 7px 0; }
+.toggle-row label { font-size: 13px; color: var(--text); text-transform: none; letter-spacing: 0; margin: 0; }
+.toggle-row .sub { font-size: 11px; color: var(--muted); margin-top: 1px; }
+.switch { position: relative; width: 44px; height: 24px; flex-shrink: 0; }
+.switch input { display: none; }
+.switch .slider { position: absolute; inset: 0; background: var(--line); border-radius: 24px; transition: background 0.2s; cursor: pointer; }
+.switch .slider::before { content: ''; position: absolute; width: 18px; height: 18px; left: 3px; top: 3px; background: var(--text); border-radius: 50%; transition: transform 0.2s; }
+.switch input:checked + .slider { background: var(--green); }
+.switch input:checked + .slider::before { transform: translateX(20px); }
 
-  @media (max-width: 720px) {
-    .legend { display: none; }
-  }
+.select-row { display: flex; align-items: center; justify-content: space-between; padding: 7px 0; }
+.select-row label { font-size: 13px; color: var(--text); }
+.select-row select {
+  background: var(--panel-2); border: 1px solid var(--line);
+  border-radius: 8px; color: var(--text);
+  font-family: 'IBM Plex Mono', monospace; font-size: 12px;
+  padding: 6px 10px; cursor: pointer;
+}
+.select-row select:focus { outline: none; border-color: var(--blue); }
+
+.warning-row { display: flex; align-items: center; justify-content: space-between; padding: 7px 0; gap: 12px; }
+.warning-row label { font-size: 13px; color: var(--text); flex: 1; }
+.warning-row input[type="number"] {
+  width: 58px; background: var(--panel-2); border: 1px solid var(--line);
+  border-radius: 8px; color: var(--text); padding: 6px 8px;
+  font-family: 'IBM Plex Mono', monospace; font-size: 13px; text-align: center;
+}
+.warning-row input:focus { outline: none; border-color: var(--blue); }
+.warning-row .unit { font-size: 12px; color: var(--muted); }
+
+/* ── Overrun states ───────────────────────────────────────── */
+.stage.overrun { background: radial-gradient(1200px 800px at 50% -10%, #2a1410 0%, var(--bg) 55%); }
+.stage.overrun-hard { animation: hardpulse 1s ease-in-out infinite; }
+@keyframes hardpulse {
+  0%,100% { background: radial-gradient(1200px 800px at 50% -10%, #2a1410 0%, var(--bg) 55%); }
+  50%      { background: radial-gradient(1200px 800px at 50% -10%, #5a1a12 0%, var(--bg) 55%); }
+}
+.flash { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; }
+.flash.fire { animation: flashfade 0.45s ease-out; }
+@keyframes flashfade { 0% { opacity: 0.45; } 100% { opacity: 0; } }
+
+@media (max-width: 500px) { .legend { display: none; } }
 </style>
 </head>
 <body>
@@ -385,44 +320,25 @@
   <div class="dial-wrap" id="dialWrap">
     <svg viewBox="0 0 200 200" id="svg" xmlns="http://www.w3.org/2000/svg">
       <defs>
-        <!-- glow filter for the hub -->
-        <filter id="hubGlow" x="-80%" y="-80%" width="260%" height="260%">
-          <feGaussianBlur in="SourceGraphic" stdDeviation="3.5" result="blur"/>
-          <feMerge>
-            <feMergeNode in="blur"/>
-            <feMergeNode in="SourceGraphic"/>
-          </feMerge>
+        <filter id="hubGlow" x="-100%" y="-100%" width="300%" height="300%">
+          <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="blur"/>
+          <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
         </filter>
       </defs>
-
-      <!-- track -->
       <circle cx="100" cy="100" r="80" fill="none" stroke="var(--ring-track)" stroke-width="28"/>
-
-      <!-- phase background arcs -->
       <g id="bgArcs"></g>
-
-      <!-- Time-Timer sweeps (remaining per phase) -->
       <g id="sweeps"></g>
-
-      <!-- phase boundary ticks -->
       <g id="ticks"></g>
-
-      <!-- overrun ring -->
       <circle id="overRing" cx="100" cy="100" r="80" fill="none"
               stroke="var(--red)" stroke-width="28" stroke-linecap="butt"
               stroke-dasharray="502.65" stroke-dashoffset="502.65" opacity="0"/>
-
-      <!-- drag hit area (invisible wide ring) -->
-      <circle id="dragRing" cx="100" cy="100" r="80" fill="none"
-              stroke="transparent" stroke-width="44"/>
-
-      <!-- hub: glow halo + white dot -->
-      <circle id="hubGlow"  cx="100" cy="12" r="10" fill="white" opacity="0.25" filter="url(#hubGlow)"/>
-      <circle id="hubDot"   cx="100" cy="12" r="5.5" fill="white" stroke="#0f1115" stroke-width="1.5"/>
+      <circle id="dragRing" cx="100" cy="100" r="80" fill="none" stroke="transparent" stroke-width="44"/>
+      <!-- hub: hidden until timer starts -->
+      <circle id="hubGlowEl" cx="100" cy="12" r="0" fill="white" opacity="0.25" filter="url(#hubGlow)"/>
+      <circle id="hubDotEl"  cx="100" cy="12" r="0" fill="white" stroke="#0f1115" stroke-width="1.5"/>
     </svg>
-
     <div class="center-readout">
-      <div class="time-big"    id="timeBig">50:00</div>
+      <div class="time-big"    id="timeBig">00:00</div>
       <div class="time-label"  id="timeLabel">Total restante</div>
       <div class="phase-clock" id="phaseClock"></div>
       <div class="drag-hint"   id="dragHint">⟳ arraste para ajustar</div>
@@ -432,587 +348,763 @@
   <div class="controls">
     <button class="btn-primary" id="startBtn">Iniciar</button>
     <button id="resetBtn">Reiniciar</button>
-    <button class="btn-popup" id="popupBtn" title="Abrir em janela flutuante">⧉</button>
+    <button class="btn-icon" id="popupBtn" title="Abrir em janela flutuante">⧉</button>
+    <button class="btn-icon" id="fsBtn" title="Tela cheia">⛶</button>
   </div>
 </div>
 
+<!-- Panel backdrop -->
 <div class="panel-backdrop" id="panelBackdrop"></div>
 
 <aside class="panel" id="panel">
   <div class="panel-inner">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
-      <h2 style="margin:0">Configurações</h2>
-      <button id="panelClose" style="background:transparent;border:none;color:var(--muted);font-size:22px;padding:4px 8px;cursor:pointer;border-radius:8px;" title="Fechar">×</button>
+    <div class="panel-header">
+      <h2>Configurações</h2>
+      <button class="panel-close" id="panelClose">×</button>
     </div>
-    <p class="hint">As fases tocam em sequência. Editável a qualquer momento (exceto rodando).</p>
-    <div id="phaseList"></div>
-    <button class="add-phase" id="addPhase">+ Adicionar fase</button>
-    <div class="total-line">
-      <span>Tempo total</span>
-      <span id="totalDisplay">50 min</span>
+
+    <!-- Tabs -->
+    <div class="tab-bar">
+      <button class="tab-btn active" data-tab="phases">Fases</button>
+      <button class="tab-btn" data-tab="presets">Presets</button>
+      <button class="tab-btn" data-tab="options">Opções</button>
     </div>
-    <hr class="section-divider">
-    <div class="toggle-row">
-      <label>Sinal sonoro nas transições</label>
-      <label class="switch"><input type="checkbox" id="soundOn" checked><span class="slider"></span></label>
+
+    <!-- Tab: Fases -->
+    <div class="tab-content active" id="tab-phases">
+      <p class="hint">As fases tocam em sequência. Editável quando pausado ou zerado.</p>
+      <div id="phaseList"></div>
+      <button class="add-phase" id="addPhase">+ Adicionar fase</button>
+      <div class="total-line">
+        <span>Tempo total</span>
+        <span id="totalDisplay">50 min</span>
+      </div>
     </div>
-    <div class="toggle-row">
-      <label>Flash visual nas transições</label>
-      <label class="switch"><input type="checkbox" id="flashOn" checked><span class="slider"></span></label>
+
+    <!-- Tab: Presets -->
+    <div class="tab-content" id="tab-presets">
+      <p class="hint">Salve configurações de fases para reutilizar rapidamente.</p>
+      <div class="preset-list" id="presetList"></div>
+      <div class="save-preset-row">
+        <input type="text" id="presetNameInput" placeholder="Nome do preset…" maxlength="40">
+        <button id="savePresetBtn">Salvar</button>
+      </div>
     </div>
-    <hr class="section-divider">
-    <div class="field">
-      <label>Aviso de fim</label>
-      <p class="hint" style="margin:0">Ao passar do tempo total o anel fica vermelho e soa um alerta. Após +10 min o alerta se intensifica e a tela pulsa.</p>
+
+    <!-- Tab: Opções -->
+    <div class="tab-content" id="tab-options">
+      <p class="hint" style="margin-bottom:12px">Alertas e comportamento do timer.</p>
+
+      <div class="toggle-row">
+        <div><div>Sinal sonoro nas transições</div></div>
+        <label class="switch"><input type="checkbox" id="soundOn" checked><span class="slider"></span></label>
+      </div>
+      <div class="toggle-row">
+        <div><div>Flash visual nas transições</div></div>
+        <label class="switch"><input type="checkbox" id="flashOn" checked><span class="slider"></span></label>
+      </div>
+      <div class="toggle-row">
+        <div><div>Vibração nas transições</div><div class="sub">Android / alguns browsers</div></div>
+        <label class="switch"><input type="checkbox" id="vibrateOn" checked><span class="slider"></span></label>
+      </div>
+
+      <hr class="section-divider">
+
+      <div class="select-row">
+        <label>Padrão de vibração</label>
+        <select id="vibratePattern">
+          <option value="short">Curto (1×)</option>
+          <option value="double">Duplo (2×)</option>
+          <option value="long" selected>Longo (1× longo)</option>
+          <option value="sos">Urgente (3×)</option>
+        </select>
+      </div>
+
+      <hr class="section-divider">
+
+      <p class="hint" style="margin:0 0 10px">Aviso antecipado de fim de fase</p>
+      <div class="warning-row">
+        <label>Avisar antes de terminar</label>
+        <input type="number" id="warnMinutes" min="0" max="10" value="1">
+        <span class="unit">min</span>
+      </div>
+      <div class="toggle-row">
+        <div><div>Som no aviso antecipado</div></div>
+        <label class="switch"><input type="checkbox" id="warnSoundOn" checked><span class="slider"></span></label>
+      </div>
+      <div class="toggle-row">
+        <div><div>Vibração no aviso antecipado</div></div>
+        <label class="switch"><input type="checkbox" id="warnVibrateOn" checked><span class="slider"></span></label>
+      </div>
+
+      <hr class="section-divider">
+
+      <p class="hint" style="margin:0 0 4px">Aviso de extrapolação</p>
+      <p class="hint" style="margin:0">Ao passar do tempo total o anel fica vermelho. Após +10 min a tela pulsa.</p>
     </div>
   </div>
 </aside>
 
 <script>
 (function () {
-  "use strict";
+"use strict";
 
-  // ─── Constants ───────────────────────────────────────────────
-  const SYNC_KEY  = "timerConsulta_state";
-  const WINDOW_ID = Math.random().toString(36).slice(2);
-  const IS_POPUP  = window.opener !== null;
-  const R = 80, SW = 28, C = 2 * Math.PI * 80;
+// ── Constants ──────────────────────────────────────────────
+const SYNC_KEY    = "timerConsulta_state";
+const PRESET_KEY  = "timerConsulta_presets";
+const WINDOW_ID   = Math.random().toString(36).slice(2);
+const IS_POPUP    = window.opener !== null;
+const R = 80, SW = 28, C = 2 * Math.PI * R;
 
-  const DEFAULTS = [
-    { name: "Abertura",        min: 7,  color: "#2ecc71" },
-    { name: "Desenvolvimento", min: 15, color: "#3aa0ff" },
-    { name: "Exploração",      min: 18, color: "#f5c542" },
-    { name: "Fechamento",      min: 10, color: "#ff4d4d" },
-  ];
+// ── Defaults ───────────────────────────────────────────────
+const DEFAULT_PHASES = [
+  { name: "Abertura",        min: 7,  color: "#2ecc71" },
+  { name: "Desenvolvimento", min: 15, color: "#3aa0ff" },
+  { name: "Exploração",      min: 18, color: "#f5c542" },
+  { name: "Fechamento",      min: 10, color: "#ff4d4d" },
+];
 
-  // ─── State ───────────────────────────────────────────────────
-  let phases       = DEFAULTS.map(p => ({ ...p }));
-  let soundEnabled = true;
-  let flashEnabled = true;
-  let running      = false;
-  let paused       = false;
-  let startEpoch   = 0;
-  let elapsedMs    = 0;
-  let rafId        = null;
-  let phaseIdx     = -1;
-  let overState    = 0;
-  let lastOverBeep = 0;
-  let isDragging   = false;
-  let wasRunning   = false;
-  let wakeLock     = null;
+// ── State ──────────────────────────────────────────────────
+let phases   = DEFAULT_PHASES.map(p => ({ ...p }));
+let soundEnabled   = true;
+let flashEnabled   = true;
+let vibrateEnabled = true;
+let warnMinutes    = 1;
+let warnSoundOn    = true;
+let warnVibrateOn  = true;
+let vibratePattern = "long";
 
-  // ─── DOM ─────────────────────────────────────────────────────
-  const $ = id => document.getElementById(id);
-  const bgArcs    = $("bgArcs");
-  const sweepsG   = $("sweeps");
-  const ticksG    = $("ticks");
-  const overRing  = $("overRing");
-  const hubGlowEl = $("hubGlow");
-  const hubDotEl  = $("hubDot");
-  const timeBig    = $("timeBig");
-  const timeLabel  = $("timeLabel");
-  const phaseName  = $("phaseName");
-  const phaseSub   = $("phaseSub");
-  const phaseClock = $("phaseClock");
-  const dragHint   = $("dragHint");
-  const legend     = $("legend");
-  const stage      = $("stage");
-  const flash      = $("flash");
-  const startBtn   = $("startBtn");
-  const resetBtn   = $("resetBtn");
-  const dialWrap   = $("dialWrap");
-  const svgEl      = $("svg");
+let running = false, paused = false;
+let elapsedBeforePause = 0, startEpoch = 0;
+let rafId = null;
+let currentPhaseIdx = -1, overState = 0, lastOverBeep = 0;
+let warnFiredFor = -1; // which phase index we already fired the warning for
+let isDragging = false, wasRunning = false;
+let wakeLock = null;
 
-  // ─── Helpers ─────────────────────────────────────────────────
-  function totalSec() { return phases.reduce((s, p) => s + p.min * 60, 0); }
+// ── Elements ───────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+const bgArcs    = $("bgArcs");
+const sweeps    = $("sweeps");
+const ticks     = $("ticks");
+const overRing  = $("overRing");
+const hubGlowEl = $("hubGlowEl");
+const hubDotEl  = $("hubDotEl");
+const timeBig   = $("timeBig");
+const timeLabel = $("timeLabel");
+const phaseName = $("phaseName");
+const phaseSub  = $("phaseSub");
+const phaseClock= $("phaseClock");
+const dragHint  = $("dragHint");
+const legend    = $("legend");
+const stage     = $("stage");
+const flash     = $("flash");
+const startBtn  = $("startBtn");
+const resetBtn  = $("resetBtn");
+const dialWrap  = $("dialWrap");
+const svgEl     = $("svg");
 
-  function bounds() {
-    let acc = 0;
-    return phases.map(p => {
-      const start = acc, end = acc + p.min * 60;
-      acc = end;
-      return { ...p, start, end };
-    });
+// ── Audio ──────────────────────────────────────────────────
+let audioCtx = null;
+function ensureAudio() {
+  if (!audioCtx) {
+    try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {}
   }
+  if (audioCtx && audioCtx.state === "suspended") audioCtx.resume();
+}
+function beep(freq, dur, when, type, gain) {
+  if (!audioCtx) return;
+  const t0 = audioCtx.currentTime + (when || 0);
+  const osc = audioCtx.createOscillator();
+  const g   = audioCtx.createGain();
+  osc.type = type || "sine"; osc.frequency.value = freq;
+  g.gain.setValueAtTime(0, t0);
+  g.gain.linearRampToValueAtTime(gain || 0.25, t0 + 0.01);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  osc.connect(g); g.connect(audioCtx.destination);
+  osc.start(t0); osc.stop(t0 + dur + 0.02);
+}
+function sigTransition() {
+  if (!soundEnabled) return;
+  beep(660, 0.18, 0, "sine", 0.22); beep(880, 0.22, 0.16, "sine", 0.22);
+}
+function sigEnter(idx) {
+  if (!soundEnabled) return;
+  const n = Math.min(idx + 1, 4);
+  for (let i = 0; i < n; i++) beep(720, 0.10, i * 0.14, "triangle", 0.20);
+}
+function sigWarn() {
+  if (!soundEnabled || !warnSoundOn) return;
+  beep(520, 0.12, 0,    "sine", 0.18);
+  beep(520, 0.12, 0.18, "sine", 0.18);
+  beep(520, 0.12, 0.36, "sine", 0.18);
+}
+function sigOver() {
+  if (!soundEnabled) return;
+  beep(330, 0.30, 0, "sawtooth", 0.18); beep(247, 0.40, 0.10, "sawtooth", 0.18);
+}
+function sigOverHard() {
+  if (!soundEnabled) return;
+  beep(180, 0.5, 0, "square", 0.22); beep(140, 0.5, 0.18, "square", 0.22);
+}
 
-  function fmt(sec) {
-    sec = Math.max(0, Math.round(sec));
-    return String(Math.floor(sec / 60)).padStart(2, "0") + ":" + String(sec % 60).padStart(2, "0");
-  }
+// ── Vibration ──────────────────────────────────────────────
+const VIBRATE_PATTERNS = {
+  short:  [80],
+  double: [80, 80, 80],
+  long:   [300],
+  sos:    [80, 60, 80, 60, 80],
+};
+function vibrate(type) {
+  if (!vibrateEnabled || !navigator.vibrate) return;
+  navigator.vibrate(VIBRATE_PATTERNS[type] || VIBRATE_PATTERNS.long);
+}
+function vibrateWarn() {
+  if (!vibrateEnabled || !warnVibrateOn || !navigator.vibrate) return;
+  navigator.vibrate([60, 50, 60]);
+}
 
-  function nowMs() {
-    return running ? elapsedMs + (performance.now() - startEpoch) : elapsedMs;
-  }
+// ── Flash ──────────────────────────────────────────────────
+function doFlash() {
+  if (!flashEnabled) return;
+  flash.classList.remove("fire"); void flash.offsetWidth; flash.classList.add("fire");
+}
 
-  // ─── Wake Lock ───────────────────────────────────────────────
-  async function acquireWakeLock() {
-    if (!("wakeLock" in navigator)) return;
-    try {
-      wakeLock = await navigator.wakeLock.request("screen");
-      wakeLock.addEventListener("release", () => { wakeLock = null; });
-    } catch(e) {}
-  }
-  function dropWakeLock() {
-    if (wakeLock) { wakeLock.release(); wakeLock = null; }
-  }
-  document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "visible" && running) acquireWakeLock();
+// ── Wake Lock ──────────────────────────────────────────────
+async function requestWakeLock() {
+  if (!('wakeLock' in navigator)) return;
+  try {
+    wakeLock = await navigator.wakeLock.request('screen');
+    wakeLock.addEventListener('release', () => { wakeLock = null; });
+  } catch(e) {}
+}
+function releaseWakeLock() {
+  if (wakeLock) { wakeLock.release(); wakeLock = null; }
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && running) requestWakeLock();
+});
+
+// ── Helpers ────────────────────────────────────────────────
+function totalSec() { return phases.reduce((s, p) => s + p.min * 60, 0); }
+function phaseBoundaries() {
+  let acc = 0;
+  return phases.map(p => { const s = acc, e = acc + p.min * 60; acc = e; return { ...p, start: s, end: e }; });
+}
+function fmt(sec) {
+  sec = Math.max(0, Math.round(sec));
+  return String(Math.floor(sec / 60)).padStart(2, "0") + ":" + String(sec % 60).padStart(2, "0");
+}
+function currentElapsed() {
+  return running ? elapsedBeforePause + (performance.now() - startEpoch) : elapsedBeforePause;
+}
+
+// ── Hub ────────────────────────────────────────────────────
+function setHub(frac, visible) {
+  const ang = frac * 2 * Math.PI;
+  const cx = 100 + R * Math.cos(ang), cy = 100 + R * Math.sin(ang);
+  hubDotEl.setAttribute("cx",  cx); hubDotEl.setAttribute("cy",  cy);
+  hubGlowEl.setAttribute("cx", cx); hubGlowEl.setAttribute("cy", cy);
+  const r = visible ? "5.5" : "0", rg = visible ? "10" : "0";
+  hubDotEl.setAttribute("r", r); hubGlowEl.setAttribute("r", rg);
+  hubDotEl.setAttribute("fill", "white");
+}
+
+// ── SVG rings ──────────────────────────────────────────────
+function makeArc(r, sw, color, f0, f1, opacity) {
+  const el  = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+  const len = (f1 - f0) * C;
+  el.setAttribute("cx","100"); el.setAttribute("cy","100"); el.setAttribute("r", r);
+  el.setAttribute("fill","none"); el.setAttribute("stroke", color);
+  el.setAttribute("stroke-width", sw);
+  el.setAttribute("stroke-dasharray", `${len} ${C - len}`);
+  el.setAttribute("stroke-dashoffset", -f0 * C);
+  el.setAttribute("opacity", opacity); el.setAttribute("stroke-linecap","butt");
+  return el;
+}
+
+function renderRings() {
+  bgArcs.innerHTML = ""; sweeps.innerHTML = ""; ticks.innerHTML = "";
+  const tot = totalSec(); if (tot <= 0) return;
+  const bounds = phaseBoundaries(); const GAP = 0.004;
+  bounds.forEach((b, i) => {
+    const f0 = b.start / tot, f1 = b.end / tot;
+    const gs = i > 0 ? GAP/2 : 0, ge = i < bounds.length-1 ? GAP/2 : 0;
+    bgArcs.appendChild(makeArc(R, SW, b.color, f0+gs, f1-ge, 0.18));
+    const sw = makeArc(R, SW, b.color, f0+gs, f1-ge, 0); sw.id = "sweep_"+i; sweeps.appendChild(sw);
+    if (i > 0) {
+      const ang = f0 * 2 * Math.PI, ri = R-SW/2-2, ro = R+SW/2+2;
+      const line = document.createElementNS("http://www.w3.org/2000/svg","line");
+      line.setAttribute("x1", 100+ri*Math.cos(ang)); line.setAttribute("y1", 100+ri*Math.sin(ang));
+      line.setAttribute("x2", 100+ro*Math.cos(ang)); line.setAttribute("y2", 100+ro*Math.sin(ang));
+      line.setAttribute("stroke","#0f1115"); line.setAttribute("stroke-width","2.5");
+      ticks.appendChild(line);
+    }
   });
+}
 
-  // ─── Audio ───────────────────────────────────────────────────
-  let audioCtx = null;
-  function ensureAudio() {
-    if (!audioCtx) {
-      try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
-      catch(e) {}
-    }
-    if (audioCtx && audioCtx.state === "suspended") audioCtx.resume();
-  }
-  function beep(freq, dur, when, type, gain) {
-    if (!audioCtx) return;
-    const t = audioCtx.currentTime + (when || 0);
-    const o = audioCtx.createOscillator();
-    const g = audioCtx.createGain();
-    o.type = type || "sine"; o.frequency.value = freq;
-    g.gain.setValueAtTime(0, t);
-    g.gain.linearRampToValueAtTime(gain || 0.25, t + 0.01);
-    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-    o.connect(g); g.connect(audioCtx.destination);
-    o.start(t); o.stop(t + dur + 0.02);
-  }
-  function sigTransition() {
-    if (!soundEnabled) return;
-    beep(660, 0.18, 0,    "sine", 0.22);
-    beep(880, 0.22, 0.16, "sine", 0.22);
-  }
-  function sigEnter(i) {
-    if (!soundEnabled) return;
-    const n = Math.min(i + 1, 4);
-    for (let k = 0; k < n; k++) beep(720, 0.10, k * 0.14, "triangle", 0.20);
-  }
-  function sigOver()     { if (soundEnabled) { beep(330, 0.30, 0, "sawtooth", 0.18); beep(247, 0.40, 0.10, "sawtooth", 0.18); } }
-  function sigOverHard() { if (soundEnabled) { beep(180, 0.5, 0, "square", 0.22); beep(140, 0.5, 0.18, "square", 0.22); } }
-
-  function doFlash() {
-    if (!flashEnabled) return;
-    flash.classList.remove("fire");
-    void flash.offsetWidth;
-    flash.classList.add("fire");
-  }
-
-  // ─── SVG rings ───────────────────────────────────────────────
-  function makeArc(r, sw, color, f0, f1, opacity) {
-    const el = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-    const circ = 2 * Math.PI * r;
-    el.setAttribute("cx", "100"); el.setAttribute("cy", "100"); el.setAttribute("r", r);
-    el.setAttribute("fill", "none"); el.setAttribute("stroke", color);
-    el.setAttribute("stroke-width", sw); el.setAttribute("stroke-linecap", "butt");
-    el.setAttribute("stroke-dasharray",  `${(f1-f0)*circ} ${circ-(f1-f0)*circ}`);
-    el.setAttribute("stroke-dashoffset", -f0 * circ);
-    el.setAttribute("opacity", opacity);
-    return el;
-  }
-
-  function renderRings() {
-    bgArcs.innerHTML = ""; sweepsG.innerHTML = ""; ticksG.innerHTML = "";
-    const tot = totalSec(); if (!tot) return;
-    const GAP = 0.004;
-    bounds().forEach((b, i, arr) => {
-      const f0 = b.start / tot, f1 = b.end / tot;
-      const gs = i > 0           ? GAP/2 : 0;
-      const ge = i < arr.length-1 ? GAP/2 : 0;
-      bgArcs.appendChild(makeArc(R, SW, b.color, f0+gs, f1-ge, 0.18));
-      const sw = makeArc(R, SW, b.color, f0+gs, f1-ge, 0);
-      sw.id = "sw_" + i; sweepsG.appendChild(sw);
-      if (i > 0) {
-        const ang = f0 * 2 * Math.PI;
-        const ri = R - SW/2 - 2, ro = R + SW/2 + 2;
-        const ln = document.createElementNS("http://www.w3.org/2000/svg", "line");
-        ln.setAttribute("x1", 100 + ri*Math.cos(ang)); ln.setAttribute("y1", 100 + ri*Math.sin(ang));
-        ln.setAttribute("x2", 100 + ro*Math.cos(ang)); ln.setAttribute("y2", 100 + ro*Math.sin(ang));
-        ln.setAttribute("stroke", "#0f1115"); ln.setAttribute("stroke-width", "2.5");
-        ticksG.appendChild(ln);
-      }
-    });
-  }
-
-  function updateSweeps(sec) {
-    const tot = totalSec();
-    bounds().forEach((b, i, arr) => {
-      const el = $("sw_" + i); if (!el) return;
-      const f0 = b.start/tot, f1 = b.end/tot;
-      const gs = i > 0           ? 0.002 : 0;
-      const ge = i < arr.length-1 ? 0.002 : 0;
-      const pf0 = f0+gs, pf1 = f1-ge, pfLen = pf1-pf0;
-      const circ = C;
-      if (sec <= b.start) {
-        el.setAttribute("stroke-dasharray",  `${pfLen*circ} ${circ-pfLen*circ}`);
-        el.setAttribute("stroke-dashoffset", -pf0*circ);
-        el.setAttribute("opacity", "0.82");
-      } else if (sec >= b.end) {
-        el.setAttribute("stroke-dasharray", `0 ${circ}`);
-        el.setAttribute("opacity", "0");
-      } else {
-        const prog = (sec - b.start) / (b.end - b.start);
-        const curF = pf0 + pfLen * prog;
-        const rem  = (pf1 - curF) * circ;
-        el.setAttribute("stroke-dasharray",  `${rem} ${circ-rem}`);
-        el.setAttribute("stroke-dashoffset", -curF * circ);
-        el.setAttribute("opacity", "1");
-      }
-    });
-  }
-
-  function setHub(frac) {
-    const ang = frac * 2 * Math.PI;
-    const cx = 100 + R*Math.cos(ang), cy = 100 + R*Math.sin(ang);
-    hubDotEl.setAttribute("cx", cx);  hubDotEl.setAttribute("cy", cy);
-    hubGlowEl.setAttribute("cx", cx); hubGlowEl.setAttribute("cy", cy);
-  }
-
-  // ─── Legend ──────────────────────────────────────────────────
-  function renderLegend() {
-    legend.innerHTML = "";
-    bounds().forEach((b, i) => {
-      const d = document.createElement("div");
-      d.className = "legend-item";
-      d.innerHTML = `<span class="swatch" style="background:${b.color}"></span><span>${b.name} · ${b.min} min</span>`;
-      legend.appendChild(d);
-    });
-  }
-  function hl(idx) {
-    [...legend.children].forEach((c, i) => c.classList.toggle("active", i === idx));
-  }
-
-  // ─── Display ─────────────────────────────────────────────────
-  function draw(sec) {
-    const tot  = totalSec();
-    const over = sec >= tot;
-    updateSweeps(over ? tot : sec);
-
-    if (!over) {
-      const bs  = bounds();
-      const idx = bs.findIndex(b => sec < b.end);
-      const b   = bs[idx];
-      if (idx !== phaseIdx) {
-        phaseIdx = idx;
-        if (!isDragging) { if (idx > 0) sigTransition(); sigEnter(idx); doFlash(); }
-        hl(idx);
-      }
-      phaseName.textContent = b.name;      phaseName.style.color = b.color;
-      phaseSub.textContent  = `Fase ${idx+1} de ${bs.length}`;
-      timeBig.textContent   = fmt(b.end - sec); timeBig.style.color = b.color;
-      timeLabel.textContent = "Restante nesta fase";
-      phaseClock.innerHTML  = `Total restante <b>${fmt(tot - sec)}</b>`;
-      setHub(sec / tot);
-      hubDotEl.setAttribute("r", "5.5"); hubGlowEl.setAttribute("r", "10");
-      overRing.setAttribute("opacity", "0");
-      stage.classList.remove("overrun", "overrun-hard");
-      overState = 0;
+function updateSweeps(elapsedSec) {
+  const tot = totalSec(), bounds = phaseBoundaries(), GAP = 0.004;
+  bounds.forEach((b, i) => {
+    const el = $("sweep_"+i); if (!el) return;
+    const f0 = b.start/tot, f1 = b.end/tot;
+    const gs = i>0?GAP/2:0, ge = i<bounds.length-1?GAP/2:0;
+    const pf0=f0+gs, pf1=f1-ge, pfL=pf1-pf0;
+    if (elapsedSec <= b.start) {
+      el.setAttribute("stroke-dasharray",  `${pfL*C} ${C-pfL*C}`);
+      el.setAttribute("stroke-dashoffset", -pf0*C); el.setAttribute("opacity","0.82");
+    } else if (elapsedSec >= b.end) {
+      el.setAttribute("stroke-dasharray", `0 ${C}`); el.setAttribute("opacity","0");
     } else {
-      const overSec = sec - tot;
-      const hard    = overSec >= 600;
-      phaseIdx = 999;
-      phaseName.textContent = hard ? "Atraso significativo" : "Tempo esgotado";
-      phaseName.style.color = hard ? "#fff" : "var(--red)";
-      phaseSub.textContent  = hard ? "Mais de 10 min além do previsto" : "Encerrar a consulta";
-      timeBig.textContent   = "+" + fmt(overSec);
-      timeBig.style.color   = hard ? "#fff" : "var(--over)";
-      timeLabel.textContent = "Além do tempo total"; phaseClock.innerHTML = "";
-      const overFrac = Math.min(overSec/600, 1);
-      overRing.setAttribute("stroke",            hard ? "#fff" : "var(--red)");
-      overRing.setAttribute("stroke-dasharray",  `${overFrac*C} ${C-overFrac*C}`);
-      overRing.setAttribute("stroke-dashoffset", "0");
-      overRing.setAttribute("opacity", "0.85");
-      setHub(0);
-      hubDotEl.setAttribute("fill", hard ? "#fff" : "var(--over)");
-      hubDotEl.setAttribute("r", "5.5");
-      if (!isDragging) {
-        const ns = hard ? 2 : 1;
-        if (ns !== overState) {
-          overState = ns;
-          if (ns === 1) { stage.classList.add("overrun");      doFlash(); sigOver();     lastOverBeep = sec; }
-          if (ns === 2) { stage.classList.add("overrun-hard"); doFlash(); sigOverHard(); lastOverBeep = sec; }
-        }
-        const iv = hard ? 15 : 30;
-        if (sec - lastOverBeep >= iv) { lastOverBeep = sec; hard ? sigOverHard() : sigOver(); doFlash(); }
+      const prog = (elapsedSec-b.start)/(b.end-b.start);
+      const curF = pf0 + pfL*prog, remL = (pf1-curF)*C;
+      el.setAttribute("stroke-dasharray",  `${remL} ${C-remL}`);
+      el.setAttribute("stroke-dashoffset", -curF*C); el.setAttribute("opacity","1");
+    }
+  });
+}
+
+// ── Legend ─────────────────────────────────────────────────
+function renderLegend() {
+  legend.innerHTML = "";
+  phaseBoundaries().forEach((b, i) => {
+    const item = document.createElement("div"); item.className = "legend-item";
+    item.innerHTML = `<span class="swatch" style="background:${b.color}"></span><span>${b.name} · ${b.min} min</span>`;
+    legend.appendChild(item);
+  });
+}
+function highlightLegend(idx) {
+  [...legend.children].forEach((c,i) => c.classList.toggle("active", i===idx));
+}
+
+// ── Document title ─────────────────────────────────────────
+function updateTitle(elapsedSec) {
+  const tot = totalSec(), bounds = phaseBoundaries();
+  if (!running && !paused) { document.title = "Timer de Consulta"; return; }
+  const over = elapsedSec >= tot;
+  if (over) {
+    document.title = `+${fmt(elapsedSec - tot)} · Tempo esgotado`;
+  } else {
+    const idx = bounds.findIndex(b => elapsedSec < b.end);
+    const b   = bounds[idx];
+    document.title = `${fmt(b.end - elapsedSec)} · ${b.name}`;
+  }
+}
+
+// ── Warn ahead ─────────────────────────────────────────────
+function checkWarnAhead(elapsedSec) {
+  if (warnMinutes <= 0) return;
+  const bounds = phaseBoundaries();
+  const idx = bounds.findIndex(b => elapsedSec < b.end);
+  if (idx < 0) return;
+  const b = bounds[idx];
+  const remaining = b.end - elapsedSec;
+  if (remaining <= warnMinutes * 60 && remaining > 0 && warnFiredFor !== idx) {
+    warnFiredFor = idx;
+    sigWarn();
+    vibrateWarn();
+  }
+}
+
+// ── Display update ─────────────────────────────────────────
+function updateDisplay(elapsedSec) {
+  const tot = totalSec(), bounds = phaseBoundaries(), over = elapsedSec >= tot;
+  updateSweeps(over ? tot : elapsedSec);
+  updateTitle(elapsedSec);
+
+  if (!over) {
+    const idx = bounds.findIndex(b => elapsedSec < b.end);
+    const b   = bounds[idx];
+    if (idx !== currentPhaseIdx) {
+      currentPhaseIdx = idx;
+      if (!isDragging) onEnterPhase(idx, b);
+      else highlightLegend(idx);
+      warnFiredFor = -1; // reset warn for new phase
+    }
+    if (!isDragging) checkWarnAhead(elapsedSec);
+    phaseName.textContent = b.name; phaseName.style.color = b.color;
+    phaseSub.textContent  = `Fase ${idx+1} de ${bounds.length}`;
+    timeBig.textContent   = fmt(b.end - elapsedSec); timeBig.style.color = b.color;
+    timeLabel.textContent = "Restante nesta fase";
+    phaseClock.innerHTML  = `Total restante <b>${fmt(tot - elapsedSec)}</b>`;
+    setHub(elapsedSec / tot, true);
+    overRing.setAttribute("opacity","0");
+    stage.classList.remove("overrun","overrun-hard"); overState = 0;
+
+  } else {
+    const overSec = elapsedSec - tot, hard = overSec >= 600;
+    currentPhaseIdx = bounds.length;
+    phaseName.textContent = hard ? "Atraso significativo" : "Tempo esgotado";
+    phaseName.style.color = hard ? "#fff" : "var(--red)";
+    phaseSub.textContent  = hard ? "Mais de 10 min além do previsto" : "Encerrar a consulta";
+    timeBig.textContent   = "+"+fmt(overSec); timeBig.style.color = hard ? "#fff" : "var(--over)";
+    timeLabel.textContent = "Além do tempo total"; phaseClock.innerHTML = "";
+    const overFrac = Math.min(overSec/600, 1), overLen = overFrac * C;
+    overRing.setAttribute("stroke",           hard ? "#fff" : "var(--red)");
+    overRing.setAttribute("stroke-dasharray", `${overLen} ${C-overLen}`);
+    overRing.setAttribute("stroke-dashoffset","0"); overRing.setAttribute("opacity","0.85");
+    setHub(0, true);
+    const newState = hard ? 2 : 1;
+    if (!isDragging && newState !== overState) {
+      overState = newState;
+      if (newState === 1) { stage.classList.add("overrun");      doFlash(); sigOver();     vibrate(vibratePattern); lastOverBeep = elapsedSec; }
+      if (newState === 2) { stage.classList.add("overrun-hard"); doFlash(); sigOverHard(); vibrate(vibratePattern); lastOverBeep = elapsedSec; }
+    }
+    if (!isDragging) {
+      const interval = hard ? 15 : 30;
+      if (elapsedSec - lastOverBeep >= interval) {
+        lastOverBeep = elapsedSec; hard ? sigOverHard() : sigOver(); doFlash();
+        vibrate(vibratePattern);
       }
     }
   }
+}
 
-  // ─── Tick ────────────────────────────────────────────────────
-  function tick() {
-    if (!running) return;
-    draw(nowMs() / 1000);
-    rafId = requestAnimationFrame(tick);
+// ── Tick ───────────────────────────────────────────────────
+function tick() {
+  updateDisplay(currentElapsed() / 1000);
+  broadcastState();
+  if (running) rafId = requestAnimationFrame(tick);
+}
+
+function onEnterPhase(idx, b) {
+  if (idx > 0) { sigTransition(); vibrate(vibratePattern); }
+  sigEnter(idx); doFlash(); highlightLegend(idx);
+}
+
+// ── Controls ───────────────────────────────────────────────
+function start() {
+  ensureAudio(); if (totalSec() <= 0) return;
+  running = true; paused = false; startEpoch = performance.now();
+  startBtn.textContent = "Pausar"; startBtn.classList.remove("paused");
+  currentPhaseIdx = -1; overState = 0; lastOverBeep = 0; warnFiredFor = -1;
+  closePanel(); cancelAnimationFrame(rafId);
+  rafId = requestAnimationFrame(tick);
+  requestWakeLock();
+  tryFullscreen();
+}
+function pause() {
+  running = false; paused = true; elapsedBeforePause = currentElapsed();
+  cancelAnimationFrame(rafId);
+  startBtn.textContent = "Retomar"; startBtn.classList.add("paused");
+  releaseWakeLock(); broadcastState(); updateTitle(elapsedBeforePause/1000);
+}
+function resume() {
+  ensureAudio(); running = true; paused = false; startEpoch = performance.now();
+  startBtn.textContent = "Pausar"; startBtn.classList.remove("paused");
+  rafId = requestAnimationFrame(tick); requestWakeLock();
+}
+function reset() {
+  running = false; paused = false; elapsedBeforePause = 0;
+  cancelAnimationFrame(rafId);
+  currentPhaseIdx = -1; overState = 0; lastOverBeep = 0; warnFiredFor = -1;
+  stage.classList.remove("overrun","overrun-hard");
+  startBtn.textContent = "Iniciar"; startBtn.classList.remove("paused");
+  const tot = totalSec();
+  timeBig.textContent = fmt(tot); timeBig.style.color = "var(--text)";
+  timeLabel.textContent = "Total restante";
+  phaseName.textContent = "Pronto"; phaseName.style.color = "var(--text)";
+  phaseSub.textContent  = "Inicie quando estiver pronto";
+  phaseClock.innerHTML  = "";
+  overRing.setAttribute("opacity","0");
+  setHub(0, false);
+  updateSweeps(0); highlightLegend(-1);
+  releaseWakeLock(); broadcastState(); document.title = "Timer de Consulta";
+}
+
+startBtn.addEventListener("click", () => {
+  if (!running && !paused) start();
+  else if (running) pause();
+  else if (paused) resume();
+});
+resetBtn.addEventListener("click", reset);
+
+document.addEventListener("keydown", e => {
+  if (e.code === "Space") { e.preventDefault(); startBtn.click(); }
+  else if (e.key === "r" || e.key === "R") reset();
+  else if (e.key === "f" || e.key === "F") toggleFullscreen();
+});
+
+// ── Fullscreen ─────────────────────────────────────────────
+function tryFullscreen() {
+  if (document.fullscreenElement) return;
+  document.documentElement.requestFullscreen?.().catch(() => {});
+}
+function toggleFullscreen() {
+  if (document.fullscreenElement) document.exitFullscreen?.();
+  else document.documentElement.requestFullscreen?.().catch(() => {});
+}
+$("fsBtn").addEventListener("click", toggleFullscreen);
+
+// ── Drag-to-scrub ──────────────────────────────────────────
+function getAngleFrac(e) {
+  const rect = svgEl.getBoundingClientRect();
+  const cx = rect.left + rect.width/2, cy = rect.top + rect.height/2;
+  const px = e.touches ? e.touches[0].clientX : e.clientX;
+  const py = e.touches ? e.touches[0].clientY : e.clientY;
+  let ang = Math.atan2(py - cy, px - cx) + Math.PI/2;
+  if (ang < 0) ang += 2*Math.PI;
+  return ang / (2*Math.PI);
+}
+function nearRing(e) {
+  const rect = svgEl.getBoundingClientRect(), scale = rect.width/200;
+  const cx = rect.left + rect.width/2, cy = rect.top + rect.height/2;
+  const px = e.touches ? e.touches[0].clientX : e.clientX;
+  const py = e.touches ? e.touches[0].clientY : e.clientY;
+  const d = Math.sqrt((px-cx)**2 + (py-cy)**2) / scale;
+  return d >= R-SW/2-6 && d <= R+SW/2+12;
+}
+function onDragStart(e) {
+  if (!nearRing(e)) return;
+  e.preventDefault(); isDragging = true; wasRunning = running;
+  if (running) { elapsedBeforePause = currentElapsed(); running = false; cancelAnimationFrame(rafId); }
+  dialWrap.classList.add("dragging"); dragHint.classList.add("visible");
+  onDragMove(e);
+}
+function onDragMove(e) {
+  if (!isDragging) return; e.preventDefault();
+  elapsedBeforePause = getAngleFrac(e) * totalSec() * 1000;
+  currentPhaseIdx = -1; updateDisplay(elapsedBeforePause/1000);
+}
+function onDragEnd() {
+  if (!isDragging) return; isDragging = false;
+  dialWrap.classList.remove("dragging"); dragHint.classList.remove("visible");
+  if (wasRunning) { startEpoch = performance.now(); running = true; rafId = requestAnimationFrame(tick); }
+  else broadcastState();
+}
+$("dragRing").addEventListener("mousedown", onDragStart);
+hubDotEl.addEventListener("mousedown", onDragStart);
+document.addEventListener("mousemove", onDragMove);
+document.addEventListener("mouseup", onDragEnd);
+$("dragRing").addEventListener("touchstart", onDragStart, { passive: false });
+hubDotEl.addEventListener("touchstart", onDragStart, { passive: false });
+document.addEventListener("touchmove", onDragMove, { passive: false });
+document.addEventListener("touchend", onDragEnd);
+dialWrap.addEventListener("mousemove", e => {
+  dragHint.classList.toggle("visible", !isDragging && nearRing(e));
+});
+dialWrap.addEventListener("mouseleave", () => {
+  if (!isDragging) dragHint.classList.remove("visible");
+});
+
+// ── Popup ──────────────────────────────────────────────────
+$("popupBtn").addEventListener("click", () => {
+  broadcastState();
+  const html = document.documentElement.outerHTML;
+  const url  = URL.createObjectURL(new Blob([html], { type: "text/html" }));
+  const w = window.open(url,"TimerConsulta","width=430,height=560,resizable=yes,scrollbars=no,toolbar=no,menubar=no,location=no");
+  if (!w) alert("Permita pop-ups nas configurações do navegador.");
+});
+
+// ── State sync ─────────────────────────────────────────────
+function broadcastState() {
+  const state = {
+    running, paused, elapsedMs: currentElapsed(),
+    phases: JSON.parse(JSON.stringify(phases)),
+    soundEnabled, flashEnabled, vibrateEnabled,
+    warnMinutes, warnSoundOn, warnVibrateOn, vibratePattern,
+    ts: Date.now(), from: WINDOW_ID,
+  };
+  try { localStorage.setItem(SYNC_KEY, JSON.stringify(state)); } catch(e) {}
+}
+function applyState(state) {
+  if (!state) return;
+  if (state.phases && JSON.stringify(state.phases) !== JSON.stringify(phases)) {
+    phases = state.phases; renderAll();
   }
+  soundEnabled   = state.soundEnabled   ?? true;
+  flashEnabled   = state.flashEnabled   ?? true;
+  vibrateEnabled = state.vibrateEnabled ?? true;
+  warnMinutes    = state.warnMinutes    ?? 1;
+  warnSoundOn    = state.warnSoundOn    ?? true;
+  warnVibrateOn  = state.warnVibrateOn  ?? true;
+  vibratePattern = state.vibratePattern ?? "long";
+  syncOptionsUI();
 
-  // ─── Controls ────────────────────────────────────────────────
-  function doStart() {
-    ensureAudio();
-    if (!totalSec()) return;
-    elapsedMs  = 0;
-    startEpoch = performance.now();
-    running = true; paused = false;
-    phaseIdx = -1; overState = 0; lastOverBeep = 0;
+  const ageMs = Date.now() - state.ts;
+  let restoredMs = state.elapsedMs;
+  if (state.running) restoredMs += ageMs;
+  running = false; paused = state.paused;
+  elapsedBeforePause = restoredMs;
+  cancelAnimationFrame(rafId); currentPhaseIdx = -1;
+  updateDisplay(restoredMs / 1000);
+  if (state.running) {
+    startEpoch = performance.now(); running = true;
     startBtn.textContent = "Pausar"; startBtn.classList.remove("paused");
-    closePanel();
-    cancelAnimationFrame(rafId);
     rafId = requestAnimationFrame(tick);
-    acquireWakeLock();
-    broadcastState();
-  }
-  function doPause() {
-    elapsedMs = nowMs();
-    running = false; paused = true;
-    cancelAnimationFrame(rafId);
+  } else if (state.paused) {
     startBtn.textContent = "Retomar"; startBtn.classList.add("paused");
-    dropWakeLock();
-    broadcastState();
-  }
-  function doResume() {
-    ensureAudio();
-    startEpoch = performance.now();
-    running = true; paused = false;
-    startBtn.textContent = "Pausar"; startBtn.classList.remove("paused");
-    cancelAnimationFrame(rafId);
-    rafId = requestAnimationFrame(tick);
-    acquireWakeLock();
-    broadcastState();
-  }
-  function doReset() {
-    running = false; paused = false; elapsedMs = 0;
-    cancelAnimationFrame(rafId);
-    phaseIdx = -1; overState = 0; lastOverBeep = 0;
-    stage.classList.remove("overrun", "overrun-hard");
+  } else {
     startBtn.textContent = "Iniciar"; startBtn.classList.remove("paused");
-    hubDotEl.setAttribute("fill", "white");
-    const tot = totalSec();
-    timeBig.textContent   = fmt(tot); timeBig.style.color   = "var(--text)";
-    timeLabel.textContent = "Total restante";
-    phaseName.textContent = "Pronto"; phaseName.style.color = "var(--text)";
-    phaseSub.textContent  = "Inicie quando estiver pronto";
-    phaseClock.innerHTML  = "";
-    overRing.setAttribute("opacity", "0");
-    hubDotEl.setAttribute("r", "0"); hubGlowEl.setAttribute("r", "0");
-    updateSweeps(0); hl(-1);
-    dropWakeLock();
-    broadcastState();
   }
+}
+window.addEventListener("storage", e => {
+  if (e.key !== SYNC_KEY) return;
+  try { const s = JSON.parse(e.newValue); if (s.from !== WINDOW_ID) applyState(s); } catch(e) {}
+});
+if (IS_POPUP) {
+  try { const raw = localStorage.getItem(SYNC_KEY); if (raw) applyState(JSON.parse(raw)); } catch(e) {}
+}
 
-  startBtn.addEventListener("click", () => {
-    if      (!running && !paused) doStart();
-    else if (running)             doPause();
-    else                          doResume();
+// ── Options UI sync ────────────────────────────────────────
+function syncOptionsUI() {
+  const set = (id, val) => { const el = $(id); if (el) el.checked = val; };
+  set("soundOn",      soundEnabled);
+  set("flashOn",      flashEnabled);
+  set("vibrateOn",    vibrateEnabled);
+  set("warnSoundOn",  warnSoundOn);
+  set("warnVibrateOn",warnVibrateOn);
+  const wp = $("warnMinutes"); if (wp) wp.value = warnMinutes;
+  const vp = $("vibratePattern"); if (vp) vp.value = vibratePattern;
+}
+$("soundOn").addEventListener("change",      e => { soundEnabled   = e.target.checked; broadcastState(); });
+$("flashOn").addEventListener("change",      e => { flashEnabled   = e.target.checked; broadcastState(); });
+$("vibrateOn").addEventListener("change",    e => { vibrateEnabled = e.target.checked; broadcastState(); });
+$("warnSoundOn").addEventListener("change",  e => { warnSoundOn    = e.target.checked; broadcastState(); });
+$("warnVibrateOn").addEventListener("change",e => { warnVibrateOn  = e.target.checked; broadcastState(); });
+$("warnMinutes").addEventListener("change",  e => { warnMinutes    = Math.max(0, Number(e.target.value)||0); broadcastState(); });
+$("vibratePattern").addEventListener("change",e=>{ vibratePattern = e.target.value; broadcastState(); });
+
+// ── Presets ────────────────────────────────────────────────
+function loadPresets() {
+  try { return JSON.parse(localStorage.getItem(PRESET_KEY)) || []; } catch(e) { return []; }
+}
+function savePresetsToStorage(presets) {
+  try { localStorage.setItem(PRESET_KEY, JSON.stringify(presets)); } catch(e) {}
+}
+
+function renderPresets() {
+  const presets = loadPresets();
+  const list    = $("presetList");
+  list.innerHTML = "";
+  if (presets.length === 0) {
+    list.innerHTML = `<p class="hint" style="text-align:center;padding:12px 0">Nenhum preset salvo ainda.</p>`;
+    return;
+  }
+  presets.forEach((preset, i) => {
+    const tot = preset.phases.reduce((s,p)=>s+p.min,0);
+    const item = document.createElement("div");
+    item.className = "preset-item";
+    const dots = preset.phases.map(p => `<span class="preset-dot" style="background:${p.color}"></span>`).join("");
+    item.innerHTML = `
+      <div class="preset-info">
+        <div class="preset-name">${preset.name}</div>
+        <div class="preset-meta">${preset.phases.length} fases · ${tot} min</div>
+        <div class="preset-dots">${dots}</div>
+      </div>
+      <div class="preset-actions">
+        <button class="preset-btn" data-load="${i}" title="Carregar">▶</button>
+        <button class="preset-btn del" data-del="${i}" title="Apagar">×</button>
+      </div>`;
+    list.appendChild(item);
   });
-  resetBtn.addEventListener("click", doReset);
-
-  document.addEventListener("keydown", e => {
-    if (e.code === "Space") { e.preventDefault(); startBtn.click(); }
-    if (e.key === "r" || e.key === "R") doReset();
-    if (e.key === "f" || e.key === "F") document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen?.();
-  });
-
-  // ─── Drag scrub ──────────────────────────────────────────────
-  function angleFrac(e) {
-    const rect = svgEl.getBoundingClientRect();
-    const cx = rect.left + rect.width/2, cy = rect.top + rect.height/2;
-    const px = e.touches ? e.touches[0].clientX : e.clientX;
-    const py = e.touches ? e.touches[0].clientY : e.clientY;
-    let ang = Math.atan2(py - cy, px - cx) + Math.PI/2;
-    if (ang < 0) ang += 2 * Math.PI;
-    return ang / (2 * Math.PI);
-  }
-
-  function dragStart(e) {
-    const rect  = svgEl.getBoundingClientRect();
-    const scale = rect.width / 200;
-    const cx = rect.left + rect.width/2, cy = rect.top + rect.height/2;
-    const px = e.touches ? e.touches[0].clientX : e.clientX;
-    const py = e.touches ? e.touches[0].clientY : e.clientY;
-    const dist = Math.sqrt((px-cx)**2 + (py-cy)**2) / scale;
-    if (dist < R - SW/2 - 4 || dist > R + SW/2 + 10) return;
-    e.preventDefault();
-    isDragging = true; wasRunning = running;
-    if (running) { elapsedMs = nowMs(); running = false; cancelAnimationFrame(rafId); }
-    dialWrap.classList.add("dragging");
-    dragHint.classList.add("visible");
-    dragMove(e);
-  }
-  function dragMove(e) {
-    if (!isDragging) return;
-    e.preventDefault();
-    elapsedMs = angleFrac(e) * totalSec() * 1000;
-    phaseIdx = -1;
-    draw(elapsedMs / 1000);
-  }
-  function dragEnd() {
-    if (!isDragging) return;
-    isDragging = false;
-    dialWrap.classList.remove("dragging");
-    dragHint.classList.remove("visible");
-    if (wasRunning) { startEpoch = performance.now(); running = true; rafId = requestAnimationFrame(tick); }
-    else broadcastState();
-  }
-
-  $("dragRing").addEventListener("mousedown",  dragStart);
-  hubDotEl.addEventListener("mousedown",        dragStart);
-  hubGlowEl.addEventListener("mousedown",       dragStart);
-  document.addEventListener("mousemove",        dragMove);
-  document.addEventListener("mouseup",          dragEnd);
-  $("dragRing").addEventListener("touchstart",  dragStart, { passive: false });
-  hubDotEl.addEventListener("touchstart",       dragStart, { passive: false });
-  document.addEventListener("touchmove",        dragMove,  { passive: false });
-  document.addEventListener("touchend",         dragEnd);
-
-  dialWrap.addEventListener("mousemove", e => {
-    const rect = svgEl.getBoundingClientRect();
-    const scale = rect.width / 200;
-    const cx = rect.left + rect.width/2, cy = rect.top + rect.height/2;
-    const dist = Math.sqrt((e.clientX-cx)**2 + (e.clientY-cy)**2) / scale;
-    dragHint.classList.toggle("visible", dist >= R-SW/2-4 && dist <= R+SW/2+10);
-  });
-  dialWrap.addEventListener("mouseleave", () => { if (!isDragging) dragHint.classList.remove("visible"); });
-
-  // ─── Popup sync ──────────────────────────────────────────────
-  // Broadcast only when state changes meaningfully (not every tick frame)
-  function broadcastState() {
-    const state = {
-      running, paused,
-      elapsedMs: nowMs(),
-      ts: Date.now(),
-      from: WINDOW_ID,
-      phases: JSON.parse(JSON.stringify(phases)),
-      soundEnabled, flashEnabled,
-    };
-    try { localStorage.setItem(SYNC_KEY, JSON.stringify(state)); } catch(e) {}
-  }
-
-  function applyRemoteState(state) {
-    if (!state || state.from === WINDOW_ID) return;
-
-    // Update phases if changed
-    if (JSON.stringify(state.phases) !== JSON.stringify(phases)) {
-      phases = state.phases;
-      renderAll();
-    }
-
-    // Update sound/flash
-    soundEnabled = state.soundEnabled ?? true;
-    flashEnabled = state.flashEnabled ?? true;
-    const se = $("soundOn"), fe = $("flashOn");
-    if (se) se.checked = soundEnabled;
-    if (fe) fe.checked = flashEnabled;
-
-    // Compute current elapsed accounting for transit time
-    const age = Date.now() - state.ts;
-    let ms = state.elapsedMs + (state.running ? age : 0);
-
-    // Update timer position without triggering sounds/flash
-    cancelAnimationFrame(rafId);
-    running = false; paused = state.paused;
-    elapsedMs = ms; phaseIdx = -1;
-    draw(ms / 1000);
-
-    if (state.running) {
-      startEpoch = performance.now();
-      elapsedMs  = ms;
-      running = true;
-      startBtn.textContent = "Pausar"; startBtn.classList.remove("paused");
-      rafId = requestAnimationFrame(tick);
-    } else if (state.paused) {
-      startBtn.textContent = "Retomar"; startBtn.classList.add("paused");
-    } else {
-      startBtn.textContent = "Iniciar"; startBtn.classList.remove("paused");
-    }
-  }
-
-  window.addEventListener("storage", e => {
-    if (e.key !== SYNC_KEY) return;
-    try { applyRemoteState(JSON.parse(e.newValue)); } catch(err) {}
-  });
-
-  if (IS_POPUP) {
-    try { applyRemoteState(JSON.parse(localStorage.getItem(SYNC_KEY))); } catch(e) {}
-  }
-
-  // ─── Popup button ────────────────────────────────────────────
-  $("popupBtn").addEventListener("click", () => {
-    broadcastState();
-    const blob = new Blob([document.documentElement.outerHTML], { type: "text/html" });
-    const w = window.open(URL.createObjectURL(blob), "TimerConsulta",
-      "width=430,height=540,resizable=yes,scrollbars=no,toolbar=no,menubar=no,location=no,status=no");
-    if (!w) alert("Permita pop-ups para este site nas configurações do navegador.");
-  });
-
-  // ─── Settings panel ──────────────────────────────────────────
-  const panel    = $("panel");
-  const backdrop = $("panelBackdrop");
-  function openPanel()  { panel.classList.add("open");    backdrop.classList.add("visible"); }
-  function closePanel() { panel.classList.remove("open"); backdrop.classList.remove("visible"); }
-  $("settingsToggle").addEventListener("click", () => panel.classList.contains("open") ? closePanel() : openPanel());
-  $("panelClose").addEventListener("click", closePanel);
-  backdrop.addEventListener("click", closePanel);
-
-  $("soundOn").addEventListener("change", e => { soundEnabled = e.target.checked; broadcastState(); });
-  $("flashOn").addEventListener("change", e => { flashEnabled = e.target.checked; broadcastState(); });
-
-  function renderPhaseEditor() {
-    const list = $("phaseList"); list.innerHTML = "";
-    phases.forEach((p, i) => {
-      const row = document.createElement("div");
-      row.className = "phase-row";
-      row.innerHTML =
-        `<div class="phase-row-head">
-          <input type="color" value="${p.color}" data-i="${i}" data-k="color">
-          <input type="text" value="${p.name.replace(/"/g,'&quot;')}" data-i="${i}" data-k="name">
-          ${phases.length > 1 ? `<button class="del-btn" data-del="${i}">×</button>` : ""}
-        </div>
-        <div class="dur-control">
-          <label>Duração</label>
-          <input type="number" min="1" max="180" value="${p.min}" data-i="${i}" data-k="min">
-          <span class="unit">min</span>
-        </div>`;
-      list.appendChild(row);
+  list.querySelectorAll("[data-load]").forEach(btn => {
+    btn.addEventListener("click", e => {
+      const idx = +e.currentTarget.dataset.load;
+      const preset = loadPresets()[idx];
+      if (!preset) return;
+      phases = preset.phases.map(p=>({...p}));
+      renderAll(); reset();
+      // Switch to phases tab
+      switchTab("phases");
     });
-    $("totalDisplay").textContent = phases.reduce((s, p) => s + Number(p.min), 0) + " min";
-    list.querySelectorAll("input").forEach(inp => {
-      inp.addEventListener("input", e => {
-        const i = +e.target.dataset.i, k = e.target.dataset.k;
-        if (k === "min") phases[i].min = Math.max(1, Number(e.target.value) || 1);
-        else phases[i][k] = e.target.value;
-        if (k !== "name") { renderRings(); renderLegend(); }
-        $("totalDisplay").textContent = phases.reduce((s, p) => s + Number(p.min), 0) + " min";
-        if (!running && !paused) doReset();
-        broadcastState();
-      });
-    });
-    list.querySelectorAll("[data-del]").forEach(btn => {
-      btn.addEventListener("click", e => {
-        phases.splice(+e.target.dataset.del, 1);
-        renderAll();
-        if (!running && !paused) doReset();
-        broadcastState();
-      });
-    });
-  }
-
-  $("addPhase").addEventListener("click", () => {
-    const pal = ["#9b5de5","#00bbf9","#00f5d4","#fee440","#f15bb5"];
-    phases.push({ name: "Nova fase", min: 5, color: pal[phases.length % pal.length] });
-    renderAll(); if (!running && !paused) doReset(); broadcastState();
   });
+  list.querySelectorAll("[data-del]").forEach(btn => {
+    btn.addEventListener("click", e => {
+      const idx = +e.currentTarget.dataset.del;
+      const presets = loadPresets(); presets.splice(idx, 1);
+      savePresetsToStorage(presets); renderPresets();
+    });
+  });
+}
 
-  function renderAll() { renderRings(); renderLegend(); renderPhaseEditor(); }
+$("savePresetBtn").addEventListener("click", () => {
+  const nameEl = $("presetNameInput");
+  const name = nameEl.value.trim();
+  if (!name) { nameEl.focus(); return; }
+  const presets = loadPresets();
+  presets.unshift({ name, phases: JSON.parse(JSON.stringify(phases)) });
+  savePresetsToStorage(presets);
+  nameEl.value = "";
+  renderPresets();
+});
+$("presetNameInput").addEventListener("keydown", e => {
+  if (e.key === "Enter") $("savePresetBtn").click();
+});
 
-  // ─── Service Worker ──────────────────────────────────────────
-  if ("serviceWorker" in navigator) {
-    window.addEventListener("load", () => navigator.serviceWorker.register("./sw.js").catch(() => {}));
-  }
+// ── Panel & tabs ───────────────────────────────────────────
+const panel    = $("panel");
+const backdrop = $("panelBackdrop");
+function openPanel()  { panel.classList.add("open");    backdrop.classList.add("visible"); renderPresets(); }
+function closePanel() { panel.classList.remove("open"); backdrop.classList.remove("visible"); }
+$("settingsToggle").addEventListener("click", () => panel.classList.contains("open") ? closePanel() : openPanel());
+$("panelClose").addEventListener("click", closePanel);
+backdrop.addEventListener("click", closePanel);
 
-  // ─── Init ────────────────────────────────────────────────────
-  renderAll();
-  doReset();
+function switchTab(name) {
+  document.querySelectorAll(".tab-btn").forEach(b => b.classList.toggle("active", b.dataset.tab === name));
+  document.querySelectorAll(".tab-content").forEach(c => c.classList.toggle("active", c.id === "tab-"+name));
+}
+document.querySelectorAll(".tab-btn").forEach(btn => {
+  btn.addEventListener("click", () => switchTab(btn.dataset.tab));
+});
+
+// ── Phase editor ───────────────────────────────────────────
+function renderPhaseEditor() {
+  const list = $("phaseList"); list.innerHTML = "";
+  phases.forEach((p, i) => {
+    const row = document.createElement("div"); row.className = "phase-row";
+    row.innerHTML = `
+      <div class="phase-row-head">
+        <input type="color" value="${p.color}" data-i="${i}" data-k="color">
+        <input type="text"  value="${p.name.replace(/"/g,'&quot;')}" data-i="${i}" data-k="name">
+        ${phases.length>1?`<button class="del-btn" data-del="${i}">×</button>`:""}
+      </div>
+      <div class="dur-control">
+        <label>Duração</label>
+        <input type="number" min="1" max="180" value="${p.min}" data-i="${i}" data-k="min">
+        <span class="unit">min</span>
+      </div>`;
+    list.appendChild(row);
+  });
+  $("totalDisplay").textContent = phases.reduce((s,p)=>s+Number(p.min),0)+" min";
+  list.querySelectorAll("input").forEach(inp => {
+    inp.addEventListener("input", e => {
+      const i=+e.target.dataset.i, k=e.target.dataset.k;
+      if (k==="min") phases[i].min = Math.max(1, Number(e.target.value)||1);
+      else phases[i][k] = e.target.value;
+      if (k!=="name") { renderRings(); renderLegend(); }
+      $("totalDisplay").textContent = phases.reduce((s,p)=>s+Number(p.min),0)+" min";
+      if (!running && !paused) reset();
+      broadcastState();
+    });
+  });
+  list.querySelectorAll("[data-del]").forEach(btn => {
+    btn.addEventListener("click", e => {
+      phases.splice(+e.target.dataset.del,1); renderAll();
+      if (!running && !paused) reset(); broadcastState();
+    });
+  });
+}
+$("addPhase").addEventListener("click", () => {
+  const palette=["#9b5de5","#00bbf9","#00f5d4","#fee440","#f15bb5"];
+  phases.push({name:"Nova fase",min:5,color:palette[phases.length%palette.length]});
+  renderAll(); if (!running&&!paused) reset(); broadcastState();
+});
+
+function renderAll() { renderRings(); renderLegend(); renderPhaseEditor(); }
+
+// ── Service Worker ─────────────────────────────────────────
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(() => {});
+  });
+}
+
+// ── Init ───────────────────────────────────────────────────
+renderAll();
+reset();
+syncOptionsUI();
 })();
 </script>
 </body>
