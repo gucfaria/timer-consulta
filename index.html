@@ -498,6 +498,22 @@
   let overState = 0;
   let lastOverBeep = 0;
 
+  // ─── Wake Lock ────────────────────────────────────────────────
+  let wakeLock = null;
+  async function requestWakeLock() {
+    if (!('wakeLock' in navigator)) return;
+    try {
+      wakeLock = await navigator.wakeLock.request('screen');
+      wakeLock.addEventListener('release', () => { wakeLock = null; });
+    } catch(e) {}
+  }
+  function releaseWakeLock() {
+    if (wakeLock) { wakeLock.release(); wakeLock = null; }
+  }
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && running) requestWakeLock();
+  });
+
   // SVG geometry (viewBox 200×200, SVG rotated -90°)
   const R  = 80;
   const SW = 28;
@@ -816,6 +832,7 @@
     closePanel();
     cancelAnimationFrame(rafId);
     rafId = requestAnimationFrame(tick);
+    requestWakeLock();
   }
   function pause() {
     running = false; paused = true;
@@ -823,6 +840,7 @@
     cancelAnimationFrame(rafId);
     startBtn.textContent = "Retomar";
     startBtn.classList.add("paused");
+    releaseWakeLock();
     broadcastState();
   }
   function resume() {
@@ -832,6 +850,7 @@
     startBtn.textContent = "Pausar";
     startBtn.classList.remove("paused");
     rafId = requestAnimationFrame(tick);
+    requestWakeLock();
   }
   function reset() {
     running = false; paused = false;
@@ -857,6 +876,7 @@
 
     updateSweeps(0);
     highlightLegend(-1);
+    releaseWakeLock();
     broadcastState();
   }
 
@@ -1139,43 +1159,6 @@
 
 
   // ─── Wake Lock ────────────────────────────────────────────────
-  let wakeLock = null;
-
-  async function requestWakeLock() {
-    if (!('wakeLock' in navigator)) return;
-    try {
-      wakeLock = await navigator.wakeLock.request('screen');
-      wakeLock.addEventListener('release', () => { wakeLock = null; });
-    } catch(e) {}
-  }
-
-  function releaseWakeLock() {
-    if (wakeLock) { wakeLock.release(); wakeLock = null; }
-  }
-
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible' && running) requestWakeLock();
-  });
-
-  // Intercept start/pause/resume/reset to manage wake lock
-  const _origStart  = start;
-  const _origPause  = pause;
-  const _origResume = resume;
-  const _origReset  = reset;
-
-  start  = function() { _origStart();  requestWakeLock(); };
-  resume = function() { _origResume(); requestWakeLock(); };
-  pause  = function() { _origPause();  releaseWakeLock(); };
-  reset  = function() { _origReset();  releaseWakeLock(); };
-
-  // Re-wire buttons to use updated references
-  startBtn.onclick = () => {
-    if (!running && !paused) start();
-    else if (running) pause();
-    else if (paused) resume();
-  };
-  resetBtn.onclick = reset;
-
   // ─── Service Worker ───────────────────────────────────────────
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
