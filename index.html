@@ -454,11 +454,11 @@
     <hr class="section-divider">
     <div class="toggle-row">
       <label>Sinal sonoro nas transições</label>
-      <span class="switch"><input type="checkbox" id="soundOn" checked><span class="slider"></span></span>
+      <label class="switch"><input type="checkbox" id="soundOn" checked><span class="slider"></span></label>
     </div>
     <div class="toggle-row">
       <label>Flash visual nas transições</label>
-      <span class="switch"><input type="checkbox" id="flashOn" checked><span class="slider"></span></span>
+      <label class="switch"><input type="checkbox" id="flashOn" checked><span class="slider"></span></label>
     </div>
     <hr class="section-divider">
     <div class="field">
@@ -472,11 +472,12 @@
 (function () {
   "use strict";
 
-  // ─── State sync key ──────────────────────────────────────────
-  const SYNC_KEY = "timerConsulta_state";
-  const IS_POPUP = window.opener !== null;
+  // ─── Constants ───────────────────────────────────────────────
+  const SYNC_KEY  = "timerConsulta_state";
+  const WINDOW_ID = Math.random().toString(36).slice(2);
+  const IS_POPUP  = window.opener !== null;
+  const R = 80, SW = 28, C = 2 * Math.PI * 80;
 
-  // ─── Defaults ────────────────────────────────────────────────
   const DEFAULTS = [
     { name: "Abertura",        min: 7,  color: "#2ecc71" },
     { name: "Desenvolvimento", min: 15, color: "#3aa0ff" },
@@ -484,47 +485,28 @@
     { name: "Fechamento",      min: 10, color: "#ff4d4d" },
   ];
 
-  let phases = DEFAULTS.map(p => ({ ...p }));
+  // ─── State ───────────────────────────────────────────────────
+  let phases       = DEFAULTS.map(p => ({ ...p }));
   let soundEnabled = true;
   let flashEnabled = true;
-
-  // ─── Timer state ─────────────────────────────────────────────
-  let running = false;
-  let paused  = false;
-  let elapsedBeforePause = 0; // ms
-  let startEpoch = 0;          // performance.now() reference
-  let rafId = null;
-  let currentPhaseIdx = -1;
-  let overState = 0;
+  let running      = false;
+  let paused       = false;
+  let startEpoch   = 0;
+  let elapsedMs    = 0;
+  let rafId        = null;
+  let phaseIdx     = -1;
+  let overState    = 0;
   let lastOverBeep = 0;
+  let isDragging   = false;
+  let wasRunning   = false;
+  let wakeLock     = null;
 
-  // ─── Wake Lock ────────────────────────────────────────────────
-  let wakeLock = null;
-  async function requestWakeLock() {
-    if (!('wakeLock' in navigator)) return;
-    try {
-      wakeLock = await navigator.wakeLock.request('screen');
-      wakeLock.addEventListener('release', () => { wakeLock = null; });
-    } catch(e) {}
-  }
-  function releaseWakeLock() {
-    if (wakeLock) { wakeLock.release(); wakeLock = null; }
-  }
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible' && running) requestWakeLock();
-  });
-
-  // SVG geometry (viewBox 200×200, SVG rotated -90°)
-  const R  = 80;
-  const SW = 28;
-  const C  = 2 * Math.PI * R; // ≈ 502.65
-
-  // ─── Elements ────────────────────────────────────────────────
+  // ─── DOM ─────────────────────────────────────────────────────
   const $ = id => document.getElementById(id);
-  const bgArcs   = $("bgArcs");
-  const sweeps   = $("sweeps");
-  const ticks    = $("ticks");
-  const overRing = $("overRing");
+  const bgArcs    = $("bgArcs");
+  const sweepsG   = $("sweeps");
+  const ticksG    = $("ticks");
+  const overRing  = $("overRing");
   const hubGlowEl = $("hubGlow");
   const hubDotEl  = $("hubDot");
   const timeBig    = $("timeBig");
@@ -533,67 +515,18 @@
   const phaseSub   = $("phaseSub");
   const phaseClock = $("phaseClock");
   const dragHint   = $("dragHint");
-  const legend  = $("legend");
-  const stage   = $("stage");
-  const flash   = $("flash");
-  const startBtn  = $("startBtn");
-  const resetBtn  = $("resetBtn");
-  const dialWrap  = $("dialWrap");
-  const svgEl     = $("svg");
-
-  // ─── Audio ───────────────────────────────────────────────────
-  let audioCtx = null;
-  function ensureAudio() {
-    if (!audioCtx) {
-      try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
-      catch(e) { audioCtx = null; }
-    }
-    if (audioCtx && audioCtx.state === "suspended") audioCtx.resume();
-  }
-  function beep(freq, dur, when, type, gain) {
-    if (!audioCtx) return;
-    const t0 = audioCtx.currentTime + (when || 0);
-    const osc = audioCtx.createOscillator();
-    const g   = audioCtx.createGain();
-    osc.type = type || "sine";
-    osc.frequency.value = freq;
-    g.gain.setValueAtTime(0, t0);
-    g.gain.linearRampToValueAtTime(gain || 0.25, t0 + 0.01);
-    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
-    osc.connect(g); g.connect(audioCtx.destination);
-    osc.start(t0); osc.stop(t0 + dur + 0.02);
-  }
-  function sigTransition() {
-    if (!soundEnabled) return;
-    beep(660, 0.18, 0, "sine", 0.22);
-    beep(880, 0.22, 0.16, "sine", 0.22);
-  }
-  function sigEnter(idx) {
-    if (!soundEnabled) return;
-    const n = Math.min(idx + 1, 4);
-    for (let i = 0; i < n; i++) beep(720, 0.10, i * 0.14, "triangle", 0.20);
-  }
-  function sigOver() {
-    if (!soundEnabled) return;
-    beep(330, 0.30, 0, "sawtooth", 0.18);
-    beep(247, 0.40, 0.10, "sawtooth", 0.18);
-  }
-  function sigOverHard() {
-    if (!soundEnabled) return;
-    beep(180, 0.5, 0, "square", 0.22);
-    beep(140, 0.5, 0.18, "square", 0.22);
-  }
-  function doFlash() {
-    if (!flashEnabled) return;
-    flash.classList.remove("fire");
-    void flash.offsetWidth;
-    flash.classList.add("fire");
-  }
+  const legend     = $("legend");
+  const stage      = $("stage");
+  const flash      = $("flash");
+  const startBtn   = $("startBtn");
+  const resetBtn   = $("resetBtn");
+  const dialWrap   = $("dialWrap");
+  const svgEl      = $("svg");
 
   // ─── Helpers ─────────────────────────────────────────────────
   function totalSec() { return phases.reduce((s, p) => s + p.min * 60, 0); }
 
-  function phaseBoundaries() {
+  function bounds() {
     let acc = 0;
     return phases.map(p => {
       const start = acc, end = acc + p.min * 60;
@@ -607,495 +540,416 @@
     return String(Math.floor(sec / 60)).padStart(2, "0") + ":" + String(sec % 60).padStart(2, "0");
   }
 
-  function currentElapsed() {
-    if (!running) return elapsedBeforePause;
-    return elapsedBeforePause + (performance.now() - startEpoch);
+  function nowMs() {
+    return running ? elapsedMs + (performance.now() - startEpoch) : elapsedMs;
   }
 
-  // ─── Hub position ─────────────────────────────────────────────
-  // frac = 0..1 of total time. SVG is rotated -90°, so angle 0 = top.
-  function setHubAngle(frac) {
-    const ang = frac * 2 * Math.PI;
-    const cx  = 100 + R * Math.cos(ang);
-    const cy  = 100 + R * Math.sin(ang);
-    hubDotEl.setAttribute("cx",  cx);
-    hubDotEl.setAttribute("cy",  cy);
-    hubGlowEl.setAttribute("cx", cx);
-    hubGlowEl.setAttribute("cy", cy);
+  // ─── Wake Lock ───────────────────────────────────────────────
+  async function acquireWakeLock() {
+    if (!("wakeLock" in navigator)) return;
+    try {
+      wakeLock = await navigator.wakeLock.request("screen");
+      wakeLock.addEventListener("release", () => { wakeLock = null; });
+    } catch(e) {}
+  }
+  function dropWakeLock() {
+    if (wakeLock) { wakeLock.release(); wakeLock = null; }
+  }
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible" && running) acquireWakeLock();
+  });
+
+  // ─── Audio ───────────────────────────────────────────────────
+  let audioCtx = null;
+  function ensureAudio() {
+    if (!audioCtx) {
+      try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+      catch(e) {}
+    }
+    if (audioCtx && audioCtx.state === "suspended") audioCtx.resume();
+  }
+  function beep(freq, dur, when, type, gain) {
+    if (!audioCtx) return;
+    const t = audioCtx.currentTime + (when || 0);
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    o.type = type || "sine"; o.frequency.value = freq;
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(gain || 0.25, t + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(audioCtx.destination);
+    o.start(t); o.stop(t + dur + 0.02);
+  }
+  function sigTransition() {
+    if (!soundEnabled) return;
+    beep(660, 0.18, 0,    "sine", 0.22);
+    beep(880, 0.22, 0.16, "sine", 0.22);
+  }
+  function sigEnter(i) {
+    if (!soundEnabled) return;
+    const n = Math.min(i + 1, 4);
+    for (let k = 0; k < n; k++) beep(720, 0.10, k * 0.14, "triangle", 0.20);
+  }
+  function sigOver()     { if (soundEnabled) { beep(330, 0.30, 0, "sawtooth", 0.18); beep(247, 0.40, 0.10, "sawtooth", 0.18); } }
+  function sigOverHard() { if (soundEnabled) { beep(180, 0.5, 0, "square", 0.22); beep(140, 0.5, 0.18, "square", 0.22); } }
+
+  function doFlash() {
+    if (!flashEnabled) return;
+    flash.classList.remove("fire");
+    void flash.offsetWidth;
+    flash.classList.add("fire");
   }
 
-  // ─── Render static rings ──────────────────────────────────────
-  function makeArc(r, strokeW, color, frac0, frac1, opacity) {
-    const el   = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+  // ─── SVG rings ───────────────────────────────────────────────
+  function makeArc(r, sw, color, f0, f1, opacity) {
+    const el = document.createElementNS("http://www.w3.org/2000/svg", "circle");
     const circ = 2 * Math.PI * r;
-    const len  = (frac1 - frac0) * circ;
     el.setAttribute("cx", "100"); el.setAttribute("cy", "100"); el.setAttribute("r", r);
-    el.setAttribute("fill", "none");
-    el.setAttribute("stroke", color);
-    el.setAttribute("stroke-width", strokeW);
-    el.setAttribute("stroke-dasharray", `${len} ${circ - len}`);
-    el.setAttribute("stroke-dashoffset", -frac0 * circ);
+    el.setAttribute("fill", "none"); el.setAttribute("stroke", color);
+    el.setAttribute("stroke-width", sw); el.setAttribute("stroke-linecap", "butt");
+    el.setAttribute("stroke-dasharray",  `${(f1-f0)*circ} ${circ-(f1-f0)*circ}`);
+    el.setAttribute("stroke-dashoffset", -f0 * circ);
     el.setAttribute("opacity", opacity);
-    el.setAttribute("stroke-linecap", "butt");
     return el;
   }
 
   function renderRings() {
-    bgArcs.innerHTML = "";
-    sweeps.innerHTML = "";
-    ticks.innerHTML  = "";
-
-    const tot    = totalSec();
-    if (tot <= 0) return;
-    const bounds = phaseBoundaries();
-    const GAP    = 0.004;
-
-    bounds.forEach((b, i) => {
+    bgArcs.innerHTML = ""; sweepsG.innerHTML = ""; ticksG.innerHTML = "";
+    const tot = totalSec(); if (!tot) return;
+    const GAP = 0.004;
+    bounds().forEach((b, i, arr) => {
       const f0 = b.start / tot, f1 = b.end / tot;
-      const gs = i > 0                 ? GAP / 2 : 0;
-      const ge = i < bounds.length - 1 ? GAP / 2 : 0;
-
-      bgArcs.appendChild(makeArc(R, SW, b.color, f0 + gs, f1 - ge, 0.18));
-
-      const sweep = makeArc(R, SW, b.color, f0 + gs, f1 - ge, 0);
-      sweep.id = "sweep_" + i;
-      sweeps.appendChild(sweep);
-
+      const gs = i > 0           ? GAP/2 : 0;
+      const ge = i < arr.length-1 ? GAP/2 : 0;
+      bgArcs.appendChild(makeArc(R, SW, b.color, f0+gs, f1-ge, 0.18));
+      const sw = makeArc(R, SW, b.color, f0+gs, f1-ge, 0);
+      sw.id = "sw_" + i; sweepsG.appendChild(sw);
       if (i > 0) {
         const ang = f0 * 2 * Math.PI;
-        const ri  = R - SW / 2 - 2, ro = R + SW / 2 + 2;
-        const cos = Math.cos(ang), sin = Math.sin(ang);
-        const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
-        line.setAttribute("x1", 100 + ri * cos); line.setAttribute("y1", 100 + ri * sin);
-        line.setAttribute("x2", 100 + ro * cos); line.setAttribute("y2", 100 + ro * sin);
-        line.setAttribute("stroke", "#0f1115");
-        line.setAttribute("stroke-width", "2.5");
-        ticks.appendChild(line);
+        const ri = R - SW/2 - 2, ro = R + SW/2 + 2;
+        const ln = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        ln.setAttribute("x1", 100 + ri*Math.cos(ang)); ln.setAttribute("y1", 100 + ri*Math.sin(ang));
+        ln.setAttribute("x2", 100 + ro*Math.cos(ang)); ln.setAttribute("y2", 100 + ro*Math.sin(ang));
+        ln.setAttribute("stroke", "#0f1115"); ln.setAttribute("stroke-width", "2.5");
+        ticksG.appendChild(ln);
       }
     });
   }
 
-  // ─── Animate sweeps ───────────────────────────────────────────
-  function updateSweeps(elapsedSec) {
-    const tot    = totalSec();
-    const bounds = phaseBoundaries();
-    const GAP    = 0.004;
-
-    bounds.forEach((b, i) => {
-      const el = $("sweep_" + i);
-      if (!el) return;
-
-      const f0 = b.start / tot, f1 = b.end / tot;
-      const gs = i > 0                 ? GAP / 2 : 0;
-      const ge = i < bounds.length - 1 ? GAP / 2 : 0;
-      const pf0 = f0 + gs, pf1 = f1 - ge, pfLen = pf1 - pf0;
-
-      if (elapsedSec <= b.start) {
-        // Future: full
-        const len = pfLen * C;
-        el.setAttribute("stroke-dasharray",  `${len} ${C - len}`);
-        el.setAttribute("stroke-dashoffset", -pf0 * C);
+  function updateSweeps(sec) {
+    const tot = totalSec();
+    bounds().forEach((b, i, arr) => {
+      const el = $("sw_" + i); if (!el) return;
+      const f0 = b.start/tot, f1 = b.end/tot;
+      const gs = i > 0           ? 0.002 : 0;
+      const ge = i < arr.length-1 ? 0.002 : 0;
+      const pf0 = f0+gs, pf1 = f1-ge, pfLen = pf1-pf0;
+      const circ = C;
+      if (sec <= b.start) {
+        el.setAttribute("stroke-dasharray",  `${pfLen*circ} ${circ-pfLen*circ}`);
+        el.setAttribute("stroke-dashoffset", -pf0*circ);
         el.setAttribute("opacity", "0.82");
-      } else if (elapsedSec >= b.end) {
-        // Past: consumed
-        el.setAttribute("stroke-dasharray", `0 ${C}`);
+      } else if (sec >= b.end) {
+        el.setAttribute("stroke-dasharray", `0 ${circ}`);
         el.setAttribute("opacity", "0");
       } else {
-        // Active: remaining slice shrinks
-        const progress     = (elapsedSec - b.start) / (b.end - b.start);
-        const currentF     = pf0 + pfLen * progress;
-        const remainingLen = (pf1 - currentF) * C;
-        el.setAttribute("stroke-dasharray",  `${remainingLen} ${C - remainingLen}`);
-        el.setAttribute("stroke-dashoffset", -currentF * C);
+        const prog = (sec - b.start) / (b.end - b.start);
+        const curF = pf0 + pfLen * prog;
+        const rem  = (pf1 - curF) * circ;
+        el.setAttribute("stroke-dasharray",  `${rem} ${circ-rem}`);
+        el.setAttribute("stroke-dashoffset", -curF * circ);
         el.setAttribute("opacity", "1");
       }
     });
   }
 
-  // ─── Legend ───────────────────────────────────────────────────
-  function renderLegend() {
-    legend.innerHTML = "";
-    phaseBoundaries().forEach((b, i) => {
-      const item = document.createElement("div");
-      item.className = "legend-item";
-      item.innerHTML =
-        `<span class="swatch" style="background:${b.color}"></span>` +
-        `<span>${b.name} · ${b.min} min</span>`;
-      legend.appendChild(item);
-    });
+  function setHub(frac) {
+    const ang = frac * 2 * Math.PI;
+    const cx = 100 + R*Math.cos(ang), cy = 100 + R*Math.sin(ang);
+    hubDotEl.setAttribute("cx", cx);  hubDotEl.setAttribute("cy", cy);
+    hubGlowEl.setAttribute("cx", cx); hubGlowEl.setAttribute("cy", cy);
   }
 
-  function highlightLegend(idx) {
+  // ─── Legend ──────────────────────────────────────────────────
+  function renderLegend() {
+    legend.innerHTML = "";
+    bounds().forEach((b, i) => {
+      const d = document.createElement("div");
+      d.className = "legend-item";
+      d.innerHTML = `<span class="swatch" style="background:${b.color}"></span><span>${b.name} · ${b.min} min</span>`;
+      legend.appendChild(d);
+    });
+  }
+  function hl(idx) {
     [...legend.children].forEach((c, i) => c.classList.toggle("active", i === idx));
   }
 
-  // ─── Display update (called each tick and also on scrub) ───────
-  function updateDisplay(elapsedSec) {
-    const tot    = totalSec();
-    const bounds = phaseBoundaries();
-    const over   = elapsedSec >= tot;
-
-    updateSweeps(over ? tot : elapsedSec);
+  // ─── Display ─────────────────────────────────────────────────
+  function draw(sec) {
+    const tot  = totalSec();
+    const over = sec >= tot;
+    updateSweeps(over ? tot : sec);
 
     if (!over) {
-      const idx = bounds.findIndex(b => elapsedSec < b.end);
-      const b   = bounds[idx];
-
-      if (idx !== currentPhaseIdx) {
-        currentPhaseIdx = idx;
-        if (!isDragging) onEnterPhase(idx, b);
-        else highlightLegend(idx);
+      const bs  = bounds();
+      const idx = bs.findIndex(b => sec < b.end);
+      const b   = bs[idx];
+      if (idx !== phaseIdx) {
+        phaseIdx = idx;
+        if (!isDragging) { if (idx > 0) sigTransition(); sigEnter(idx); doFlash(); }
+        hl(idx);
       }
-
-      phaseName.textContent = b.name;
-      phaseName.style.color = b.color;
-      phaseSub.textContent  = `Fase ${idx + 1} de ${bounds.length}`;
-      timeBig.textContent   = fmt(b.end - elapsedSec);
-      timeBig.style.color   = b.color;
+      phaseName.textContent = b.name;      phaseName.style.color = b.color;
+      phaseSub.textContent  = `Fase ${idx+1} de ${bs.length}`;
+      timeBig.textContent   = fmt(b.end - sec); timeBig.style.color = b.color;
       timeLabel.textContent = "Restante nesta fase";
-      phaseClock.innerHTML  = `Total restante <b>${fmt(tot - elapsedSec)}</b>`;
-
-      setHubAngle(elapsedSec / tot);
-      hubDotEl.setAttribute("r", "5.5");
-      hubGlowEl.setAttribute("r", "10");
-
+      phaseClock.innerHTML  = `Total restante <b>${fmt(tot - sec)}</b>`;
+      setHub(sec / tot);
+      hubDotEl.setAttribute("r", "5.5"); hubGlowEl.setAttribute("r", "10");
       overRing.setAttribute("opacity", "0");
       stage.classList.remove("overrun", "overrun-hard");
       overState = 0;
-
     } else {
-      const overSec = elapsedSec - tot;
+      const overSec = sec - tot;
       const hard    = overSec >= 600;
-
-      currentPhaseIdx = bounds.length;
+      phaseIdx = 999;
       phaseName.textContent = hard ? "Atraso significativo" : "Tempo esgotado";
       phaseName.style.color = hard ? "#fff" : "var(--red)";
       phaseSub.textContent  = hard ? "Mais de 10 min além do previsto" : "Encerrar a consulta";
       timeBig.textContent   = "+" + fmt(overSec);
       timeBig.style.color   = hard ? "#fff" : "var(--over)";
-      timeLabel.textContent = "Além do tempo total";
-      phaseClock.innerHTML  = "";
-
-      const overFrac = Math.min(overSec / 600, 1);
-      const overLen  = overFrac * C;
-      overRing.setAttribute("stroke",           hard ? "#fff" : "var(--red)");
-      overRing.setAttribute("stroke-dasharray", `${overLen} ${C - overLen}`);
+      timeLabel.textContent = "Além do tempo total"; phaseClock.innerHTML = "";
+      const overFrac = Math.min(overSec/600, 1);
+      overRing.setAttribute("stroke",            hard ? "#fff" : "var(--red)");
+      overRing.setAttribute("stroke-dasharray",  `${overFrac*C} ${C-overFrac*C}`);
       overRing.setAttribute("stroke-dashoffset", "0");
       overRing.setAttribute("opacity", "0.85");
-
-      // Hub stays at 12 o'clock (top = angle 0 in SVG, which is rotated -90°)
-      setHubAngle(0);
-      hubDotEl.setAttribute("fill",   hard ? "#fff" : "var(--over)");
+      setHub(0);
+      hubDotEl.setAttribute("fill", hard ? "#fff" : "var(--over)");
       hubDotEl.setAttribute("r", "5.5");
-
-      const newState = hard ? 2 : 1;
-      if (!isDragging && newState !== overState) {
-        overState = newState;
-        if (newState === 1) { stage.classList.add("overrun");      doFlash(); sigOver();     lastOverBeep = elapsedSec; }
-        if (newState === 2) { stage.classList.add("overrun-hard"); doFlash(); sigOverHard(); lastOverBeep = elapsedSec; }
-      }
       if (!isDragging) {
-        const interval = hard ? 15 : 30;
-        if (elapsedSec - lastOverBeep >= interval) {
-          lastOverBeep = elapsedSec;
-          hard ? sigOverHard() : sigOver();
-          doFlash();
+        const ns = hard ? 2 : 1;
+        if (ns !== overState) {
+          overState = ns;
+          if (ns === 1) { stage.classList.add("overrun");      doFlash(); sigOver();     lastOverBeep = sec; }
+          if (ns === 2) { stage.classList.add("overrun-hard"); doFlash(); sigOverHard(); lastOverBeep = sec; }
         }
+        const iv = hard ? 15 : 30;
+        if (sec - lastOverBeep >= iv) { lastOverBeep = sec; hard ? sigOverHard() : sigOver(); doFlash(); }
       }
     }
   }
 
-  // ─── Tick ─────────────────────────────────────────────────────
+  // ─── Tick ────────────────────────────────────────────────────
   function tick() {
-    const elapsedSec = currentElapsed() / 1000;
-    updateDisplay(elapsedSec);
-    broadcastState();
-    if (running) rafId = requestAnimationFrame(tick);
+    if (!running) return;
+    draw(nowMs() / 1000);
+    rafId = requestAnimationFrame(tick);
   }
 
-  function onEnterPhase(idx, b) {
-    if (idx > 0) sigTransition();
-    sigEnter(idx);
-    doFlash();
-    highlightLegend(idx);
-  }
-
-  // ─── Controls ─────────────────────────────────────────────────
-  function start() {
+  // ─── Controls ────────────────────────────────────────────────
+  function doStart() {
     ensureAudio();
-    if (totalSec() <= 0) return;
-    running = true; paused = false;
+    if (!totalSec()) return;
+    elapsedMs  = 0;
     startEpoch = performance.now();
-    startBtn.textContent = "Pausar";
-    startBtn.classList.remove("paused");
-    currentPhaseIdx = -1; overState = 0; lastOverBeep = 0;
+    running = true; paused = false;
+    phaseIdx = -1; overState = 0; lastOverBeep = 0;
+    startBtn.textContent = "Pausar"; startBtn.classList.remove("paused");
     closePanel();
     cancelAnimationFrame(rafId);
     rafId = requestAnimationFrame(tick);
-    requestWakeLock();
-  }
-  function pause() {
-    running = false; paused = true;
-    elapsedBeforePause = currentElapsed();
-    cancelAnimationFrame(rafId);
-    startBtn.textContent = "Retomar";
-    startBtn.classList.add("paused");
-    releaseWakeLock();
+    acquireWakeLock();
     broadcastState();
   }
-  function resume() {
-    ensureAudio();
-    running = true; paused = false;
-    startEpoch = performance.now();
-    startBtn.textContent = "Pausar";
-    startBtn.classList.remove("paused");
-    rafId = requestAnimationFrame(tick);
-    requestWakeLock();
-  }
-  function reset() {
-    running = false; paused = false;
-    elapsedBeforePause = 0;
+  function doPause() {
+    elapsedMs = nowMs();
+    running = false; paused = true;
     cancelAnimationFrame(rafId);
-    currentPhaseIdx = -1; overState = 0; lastOverBeep = 0;
+    startBtn.textContent = "Retomar"; startBtn.classList.add("paused");
+    dropWakeLock();
+    broadcastState();
+  }
+  function doResume() {
+    ensureAudio();
+    startEpoch = performance.now();
+    running = true; paused = false;
+    startBtn.textContent = "Pausar"; startBtn.classList.remove("paused");
+    cancelAnimationFrame(rafId);
+    rafId = requestAnimationFrame(tick);
+    acquireWakeLock();
+    broadcastState();
+  }
+  function doReset() {
+    running = false; paused = false; elapsedMs = 0;
+    cancelAnimationFrame(rafId);
+    phaseIdx = -1; overState = 0; lastOverBeep = 0;
     stage.classList.remove("overrun", "overrun-hard");
-    startBtn.textContent = "Iniciar";
-    startBtn.classList.remove("paused");
+    startBtn.textContent = "Iniciar"; startBtn.classList.remove("paused");
     hubDotEl.setAttribute("fill", "white");
-
     const tot = totalSec();
-    timeBig.textContent   = fmt(tot);
-    timeBig.style.color   = "var(--text)";
+    timeBig.textContent   = fmt(tot); timeBig.style.color   = "var(--text)";
     timeLabel.textContent = "Total restante";
-    phaseName.textContent = "Pronto";
-    phaseName.style.color = "var(--text)";
+    phaseName.textContent = "Pronto"; phaseName.style.color = "var(--text)";
     phaseSub.textContent  = "Inicie quando estiver pronto";
     phaseClock.innerHTML  = "";
     overRing.setAttribute("opacity", "0");
-    hubDotEl.setAttribute("r", "0");
-    hubGlowEl.setAttribute("r", "0");
-
-    updateSweeps(0);
-    highlightLegend(-1);
-    releaseWakeLock();
+    hubDotEl.setAttribute("r", "0"); hubGlowEl.setAttribute("r", "0");
+    updateSweeps(0); hl(-1);
+    dropWakeLock();
     broadcastState();
   }
 
   startBtn.addEventListener("click", () => {
-    if (!running && !paused) start();
-    else if (running) pause();
-    else if (paused) resume();
+    if      (!running && !paused) doStart();
+    else if (running)             doPause();
+    else                          doResume();
   });
-  resetBtn.addEventListener("click", reset);
+  resetBtn.addEventListener("click", doReset);
 
   document.addEventListener("keydown", e => {
     if (e.code === "Space") { e.preventDefault(); startBtn.click(); }
-    else if (e.key === "r" || e.key === "R") reset();
-    else if (e.key === "f" || e.key === "F") toggleFullscreen();
+    if (e.key === "r" || e.key === "R") doReset();
+    if (e.key === "f" || e.key === "F") document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen?.();
   });
-  function toggleFullscreen() {
-    if (!document.fullscreenElement) document.documentElement.requestFullscreen?.();
-    else document.exitFullscreen?.();
-  }
 
-  // ─── Drag-to-scrub ────────────────────────────────────────────
-  let isDragging = false;
-  let wasRunning = false;
-
-  function getAngleFrac(e) {
-    // Get pointer position relative to SVG center in SVG coordinates
-    const rect    = svgEl.getBoundingClientRect();
-    const cx      = rect.left + rect.width  / 2;
-    const cy      = rect.top  + rect.height / 2;
-    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-    // SVG is rotated -90°, so we need to account for that
-    // In screen space: top = -90° offset, so rotate pointer by +90° back
-    const dx = clientX - cx;
-    const dy = clientY - cy;
-    // angle in normal math coords (0 = right), then rotate +90° for our -90° SVG
-    let ang = Math.atan2(dy, dx) + Math.PI / 2;
+  // ─── Drag scrub ──────────────────────────────────────────────
+  function angleFrac(e) {
+    const rect = svgEl.getBoundingClientRect();
+    const cx = rect.left + rect.width/2, cy = rect.top + rect.height/2;
+    const px = e.touches ? e.touches[0].clientX : e.clientX;
+    const py = e.touches ? e.touches[0].clientY : e.clientY;
+    let ang = Math.atan2(py - cy, px - cx) + Math.PI/2;
     if (ang < 0) ang += 2 * Math.PI;
-    return ang / (2 * Math.PI); // 0..1
+    return ang / (2 * Math.PI);
   }
 
-  function onDragStart(e) {
-    // Only start drag if clicking near the ring
-    const rect    = svgEl.getBoundingClientRect();
-    const scale   = rect.width / 200;
-    const cx      = rect.left + rect.width  / 2;
-    const cy      = rect.top  + rect.height / 2;
-    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-    const dx = clientX - cx, dy = clientY - cy;
-    const dist = Math.sqrt(dx*dx + dy*dy) / scale; // in SVG units
-    if (dist < R - SW/2 - 4 || dist > R + SW/2 + 10) return; // outside ring
-
+  function dragStart(e) {
+    const rect  = svgEl.getBoundingClientRect();
+    const scale = rect.width / 200;
+    const cx = rect.left + rect.width/2, cy = rect.top + rect.height/2;
+    const px = e.touches ? e.touches[0].clientX : e.clientX;
+    const py = e.touches ? e.touches[0].clientY : e.clientY;
+    const dist = Math.sqrt((px-cx)**2 + (py-cy)**2) / scale;
+    if (dist < R - SW/2 - 4 || dist > R + SW/2 + 10) return;
     e.preventDefault();
-    isDragging = true;
-    wasRunning = running;
-    if (running) {
-      elapsedBeforePause = currentElapsed();
-      running = false;
-      cancelAnimationFrame(rafId);
-    }
+    isDragging = true; wasRunning = running;
+    if (running) { elapsedMs = nowMs(); running = false; cancelAnimationFrame(rafId); }
     dialWrap.classList.add("dragging");
     dragHint.classList.add("visible");
-    onDragMove(e);
+    dragMove(e);
   }
-
-  function onDragMove(e) {
+  function dragMove(e) {
     if (!isDragging) return;
     e.preventDefault();
-    const frac       = getAngleFrac(e);
-    const tot        = totalSec();
-    const newElapsed = frac * tot * 1000; // ms
-    elapsedBeforePause = newElapsed;
-    // Reset phase tracking so transitions fire correctly on resume
-    currentPhaseIdx = -1;
-    updateDisplay(newElapsed / 1000);
+    elapsedMs = angleFrac(e) * totalSec() * 1000;
+    phaseIdx = -1;
+    draw(elapsedMs / 1000);
   }
-
-  function onDragEnd(e) {
+  function dragEnd() {
     if (!isDragging) return;
     isDragging = false;
     dialWrap.classList.remove("dragging");
     dragHint.classList.remove("visible");
-    // Resume if was running
-    if (wasRunning) {
-      startEpoch = performance.now();
-      running = true;
-      rafId = requestAnimationFrame(tick);
-    } else {
-      broadcastState();
-    }
+    if (wasRunning) { startEpoch = performance.now(); running = true; rafId = requestAnimationFrame(tick); }
+    else broadcastState();
   }
 
-  // Mouse events
-  $("dragRing").addEventListener("mousedown",  onDragStart);
-  hubDotEl.addEventListener("mousedown",        onDragStart);
-  hubGlowEl.addEventListener("mousedown",       onDragStart);
-  document.addEventListener("mousemove",        onDragMove);
-  document.addEventListener("mouseup",          onDragEnd);
-  // Touch events
-  $("dragRing").addEventListener("touchstart",  onDragStart, { passive: false });
-  hubDotEl.addEventListener("touchstart",       onDragStart, { passive: false });
-  document.addEventListener("touchmove",        onDragMove,  { passive: false });
-  document.addEventListener("touchend",         onDragEnd);
+  $("dragRing").addEventListener("mousedown",  dragStart);
+  hubDotEl.addEventListener("mousedown",        dragStart);
+  hubGlowEl.addEventListener("mousedown",       dragStart);
+  document.addEventListener("mousemove",        dragMove);
+  document.addEventListener("mouseup",          dragEnd);
+  $("dragRing").addEventListener("touchstart",  dragStart, { passive: false });
+  hubDotEl.addEventListener("touchstart",       dragStart, { passive: false });
+  document.addEventListener("touchmove",        dragMove,  { passive: false });
+  document.addEventListener("touchend",         dragEnd);
 
-  // Show hint on hover near ring (desktop only)
   dialWrap.addEventListener("mousemove", e => {
-    const rect  = svgEl.getBoundingClientRect();
+    const rect = svgEl.getBoundingClientRect();
     const scale = rect.width / 200;
-    const cx    = rect.left + rect.width  / 2;
-    const cy    = rect.top  + rect.height / 2;
-    const dx = e.clientX - cx, dy = e.clientY - cy;
-    const dist = Math.sqrt(dx*dx + dy*dy) / scale;
-    const near = (dist >= R - SW/2 - 4 && dist <= R + SW/2 + 10);
-    dragHint.classList.toggle("visible", near);
+    const cx = rect.left + rect.width/2, cy = rect.top + rect.height/2;
+    const dist = Math.sqrt((e.clientX-cx)**2 + (e.clientY-cy)**2) / scale;
+    dragHint.classList.toggle("visible", dist >= R-SW/2-4 && dist <= R+SW/2+10);
   });
-  dialWrap.addEventListener("mouseleave", () => {
-    if (!isDragging) dragHint.classList.remove("visible");
-  });
+  dialWrap.addEventListener("mouseleave", () => { if (!isDragging) dragHint.classList.remove("visible"); });
 
-  // ─── State broadcast via localStorage ─────────────────────────
-  // Use a unique ID per window to ignore own storage events
-  const WINDOW_ID = Math.random().toString(36).slice(2);
-
+  // ─── Popup sync ──────────────────────────────────────────────
+  // Broadcast only when state changes meaningfully (not every tick frame)
   function broadcastState() {
     const state = {
-      running,
-      paused,
-      elapsedMs:   currentElapsed(),
-      phases:      JSON.parse(JSON.stringify(phases)),
-      soundEnabled,
-      flashEnabled,
-      ts:          Date.now(),
+      running, paused,
+      elapsedMs: nowMs(),
+      ts: Date.now(),
       from: WINDOW_ID,
+      phases: JSON.parse(JSON.stringify(phases)),
+      soundEnabled, flashEnabled,
     };
-    try { localStorage.setItem(SYNC_KEY, JSON.stringify(state)); }
-    catch(e) {}
+    try { localStorage.setItem(SYNC_KEY, JSON.stringify(state)); } catch(e) {}
   }
 
-  function applyState(state) {
-    if (!state) return;
-    // Phases
-    if (state.phases && JSON.stringify(state.phases) !== JSON.stringify(phases)) {
+  function applyRemoteState(state) {
+    if (!state || state.from === WINDOW_ID) return;
+
+    // Update phases if changed
+    if (JSON.stringify(state.phases) !== JSON.stringify(phases)) {
       phases = state.phases;
       renderAll();
     }
+
+    // Update sound/flash
     soundEnabled = state.soundEnabled ?? true;
     flashEnabled = state.flashEnabled ?? true;
-    // Sync checkboxes visually
-    const soundEl = $("soundOn"), flashEl = $("flashOn");
-    if (soundEl) soundEl.checked = soundEnabled;
-    if (flashEl) flashEl.checked = flashEnabled;
+    const se = $("soundOn"), fe = $("flashOn");
+    if (se) se.checked = soundEnabled;
+    if (fe) fe.checked = flashEnabled;
 
-    // Timer position
-    const ageMs = Date.now() - state.ts;
-    let restoredElapsed = state.elapsedMs;
-    if (state.running) restoredElapsed += ageMs; // account for time since broadcast
+    // Compute current elapsed accounting for transit time
+    const age = Date.now() - state.ts;
+    let ms = state.elapsedMs + (state.running ? age : 0);
 
-    running = false; // we'll restart below if needed
-    paused  = state.paused;
-    elapsedBeforePause = restoredElapsed;
+    // Update timer position without triggering sounds/flash
     cancelAnimationFrame(rafId);
-    currentPhaseIdx = -1;
-    updateDisplay(restoredElapsed / 1000);
+    running = false; paused = state.paused;
+    elapsedMs = ms; phaseIdx = -1;
+    draw(ms / 1000);
 
     if (state.running) {
       startEpoch = performance.now();
+      elapsedMs  = ms;
       running = true;
-      startBtn.textContent = "Pausar";
-      startBtn.classList.remove("paused");
+      startBtn.textContent = "Pausar"; startBtn.classList.remove("paused");
       rafId = requestAnimationFrame(tick);
     } else if (state.paused) {
-      startBtn.textContent = "Retomar";
-      startBtn.classList.add("paused");
+      startBtn.textContent = "Retomar"; startBtn.classList.add("paused");
     } else {
-      startBtn.textContent = "Iniciar";
-      startBtn.classList.remove("paused");
+      startBtn.textContent = "Iniciar"; startBtn.classList.remove("paused");
     }
   }
 
-  // Listen for changes from the other window (ignore own writes)
   window.addEventListener("storage", e => {
     if (e.key !== SYNC_KEY) return;
-    try {
-      const state = JSON.parse(e.newValue);
-      if (state.from === WINDOW_ID) return; // own write, ignore
-      applyState(state);
-    } catch(err) {}
+    try { applyRemoteState(JSON.parse(e.newValue)); } catch(err) {}
   });
 
-  // If this is a popup, load current state immediately
   if (IS_POPUP) {
-    try {
-      const raw = localStorage.getItem(SYNC_KEY);
-      if (raw) applyState(JSON.parse(raw));
-    } catch(e) {}
+    try { applyRemoteState(JSON.parse(localStorage.getItem(SYNC_KEY))); } catch(e) {}
   }
 
-  // ─── Pop-up button ────────────────────────────────────────────
+  // ─── Popup button ────────────────────────────────────────────
   $("popupBtn").addEventListener("click", () => {
     broadcastState();
-    const html = document.documentElement.outerHTML;
-    const blob = new Blob([html], { type: "text/html" });
-    const url  = URL.createObjectURL(blob);
-    const w = window.open(
-      url,
-      "TimerConsulta",
-      "width=430,height=540,resizable=yes,scrollbars=no,toolbar=no,menubar=no,location=no,status=no"
-    );
+    const blob = new Blob([document.documentElement.outerHTML], { type: "text/html" });
+    const w = window.open(URL.createObjectURL(blob), "TimerConsulta",
+      "width=430,height=540,resizable=yes,scrollbars=no,toolbar=no,menubar=no,location=no,status=no");
     if (!w) alert("Permita pop-ups para este site nas configurações do navegador.");
   });
 
-  // ─── Settings panel ───────────────────────────────────────────
-  const panel   = $("panel");
+  // ─── Settings panel ──────────────────────────────────────────
+  const panel    = $("panel");
   const backdrop = $("panelBackdrop");
-
-  function openPanel()  { panel.classList.add("open");    backdrop.classList.add("visible");    }
+  function openPanel()  { panel.classList.add("open");    backdrop.classList.add("visible"); }
   function closePanel() { panel.classList.remove("open"); backdrop.classList.remove("visible"); }
-
   $("settingsToggle").addEventListener("click", () => panel.classList.contains("open") ? closePanel() : openPanel());
   $("panelClose").addEventListener("click", closePanel);
   backdrop.addEventListener("click", closePanel);
@@ -1104,15 +958,14 @@
   $("flashOn").addEventListener("change", e => { flashEnabled = e.target.checked; broadcastState(); });
 
   function renderPhaseEditor() {
-    const list = $("phaseList");
-    list.innerHTML = "";
+    const list = $("phaseList"); list.innerHTML = "";
     phases.forEach((p, i) => {
       const row = document.createElement("div");
       row.className = "phase-row";
       row.innerHTML =
         `<div class="phase-row-head">
           <input type="color" value="${p.color}" data-i="${i}" data-k="color">
-          <input type="text"  value="${p.name.replace(/"/g,'&quot;')}" data-i="${i}" data-k="name">
+          <input type="text" value="${p.name.replace(/"/g,'&quot;')}" data-i="${i}" data-k="name">
           ${phases.length > 1 ? `<button class="del-btn" data-del="${i}">×</button>` : ""}
         </div>
         <div class="dur-control">
@@ -1123,7 +976,6 @@
       list.appendChild(row);
     });
     $("totalDisplay").textContent = phases.reduce((s, p) => s + Number(p.min), 0) + " min";
-
     list.querySelectorAll("input").forEach(inp => {
       inp.addEventListener("input", e => {
         const i = +e.target.dataset.i, k = e.target.dataset.k;
@@ -1131,7 +983,7 @@
         else phases[i][k] = e.target.value;
         if (k !== "name") { renderRings(); renderLegend(); }
         $("totalDisplay").textContent = phases.reduce((s, p) => s + Number(p.min), 0) + " min";
-        if (!running && !paused) reset();
+        if (!running && !paused) doReset();
         broadcastState();
       });
     });
@@ -1139,38 +991,28 @@
       btn.addEventListener("click", e => {
         phases.splice(+e.target.dataset.del, 1);
         renderAll();
-        if (!running && !paused) reset();
+        if (!running && !paused) doReset();
         broadcastState();
       });
     });
   }
 
   $("addPhase").addEventListener("click", () => {
-    const palette = ["#9b5de5","#00bbf9","#00f5d4","#fee440","#f15bb5"];
-    phases.push({ name: "Nova fase", min: 5, color: palette[phases.length % palette.length] });
-    renderAll();
-    if (!running && !paused) reset();
-    broadcastState();
+    const pal = ["#9b5de5","#00bbf9","#00f5d4","#fee440","#f15bb5"];
+    phases.push({ name: "Nova fase", min: 5, color: pal[phases.length % pal.length] });
+    renderAll(); if (!running && !paused) doReset(); broadcastState();
   });
 
-  function renderAll() {
-    renderRings();
-    renderLegend();
-    renderPhaseEditor();
-  }
+  function renderAll() { renderRings(); renderLegend(); renderPhaseEditor(); }
 
-
-  // ─── Wake Lock ────────────────────────────────────────────────
-  // ─── Service Worker ───────────────────────────────────────────
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('./sw.js').catch(() => {});
-    });
+  // ─── Service Worker ──────────────────────────────────────────
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => navigator.serviceWorker.register("./sw.js").catch(() => {}));
   }
 
   // ─── Init ────────────────────────────────────────────────────
   renderAll();
-  reset();
+  doReset();
 })();
 </script>
 </body>
