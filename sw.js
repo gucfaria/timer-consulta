@@ -1,4 +1,4 @@
-const CACHE = "timer-consulta-v3";
+const CACHE = "timer-consulta-v4";
 const ASSETS = [
   "./",
   "./index.html",

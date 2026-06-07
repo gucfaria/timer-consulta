@@ -69,8 +69,34 @@ body {
   color: var(--muted);
   letter-spacing: 2px;
   text-transform: uppercase;
-  margin-bottom: 20px;
+  margin-bottom: 8px;
 }
+
+/* ── Queue badge ──────────────────────────────────────────── */
+.queue-badge {
+  display: none;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 20px;
+  padding: 4px 12px 4px 8px;
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  margin-bottom: 14px;
+  cursor: default;
+  user-select: none;
+}
+.queue-badge.visible { display: inline-flex; }
+.queue-badge.interval { border-color: rgba(245,197,66,0.35); color: var(--amber); }
+.queue-badge-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--muted); flex-shrink: 0;
+}
+.queue-badge.interval .queue-badge-dot { background: var(--amber); animation: pulse-dot 1s ease-in-out infinite; }
+@keyframes pulse-dot { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(.7)} }
 
 /* ── Dial ─────────────────────────────────────────────────── */
 .dial-wrap {
@@ -187,9 +213,9 @@ button:active { transform: translateY(1px); }
 }
 .tab-btn {
   flex: 1; font-family: 'IBM Plex Mono', monospace;
-  font-size: 12px; font-weight: 500; letter-spacing: 0.3px;
+  font-size: 11px; font-weight: 500; letter-spacing: 0.3px;
   color: var(--muted); background: transparent;
-  border: none; border-radius: 7px; padding: 8px 4px; cursor: pointer;
+  border: none; border-radius: 7px; padding: 8px 2px; cursor: pointer;
   transition: all 0.15s;
 }
 .tab-btn.active { background: var(--panel); color: var(--text); }
@@ -228,6 +254,27 @@ button:active { transform: translateY(1px); }
 }
 .save-preset-row input:focus { outline: none; border-color: var(--blue); }
 .save-preset-row button { padding: 10px 14px; font-size: 13px; }
+
+/* ── Suggested presets ────────────────────────────────────── */
+.section-label {
+  font-size: 10px; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 1.5px;
+  margin-bottom: 8px;
+}
+.suggested-grid {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 6px; margin-bottom: 16px;
+}
+.suggested-btn {
+  background: var(--panel-2); border: 1px solid var(--line);
+  border-radius: 8px; color: var(--text);
+  font-size: 11px; padding: 8px 10px; cursor: pointer;
+  text-align: left; line-height: 1.3; letter-spacing: 0;
+  transition: border-color 0.15s, background 0.15s;
+}
+.suggested-btn:hover { border-color: #3a4150; background: #262b37; }
+.suggested-btn .sb-name { font-weight: 600; display: block; margin-bottom: 2px; }
+.suggested-btn .sb-meta { color: var(--muted); font-size: 10px; }
 
 /* ── Phase editor ─────────────────────────────────────────── */
 .field { margin-bottom: 14px; }
@@ -298,6 +345,96 @@ button:active { transform: translateY(1px); }
 .flash.fire { animation: flashfade 0.45s ease-out; }
 @keyframes flashfade { 0% { opacity: 0.45; } 100% { opacity: 0; } }
 
+/* ── Queue tab ────────────────────────────────────────────── */
+.queue-active-bar {
+  display: none; align-items: center; justify-content: space-between;
+  background: rgba(46,204,113,0.08); border: 1px solid rgba(46,204,113,0.25);
+  border-radius: 8px; padding: 8px 12px; margin-bottom: 14px;
+  font-size: 12px;
+}
+.queue-active-bar.visible { display: flex; }
+.queue-active-label { color: var(--green); font-size: 12px; letter-spacing: 0.5px; }
+.queue-stop-btn {
+  background: transparent; border: 1px solid rgba(255,77,77,0.3);
+  color: var(--red); font-size: 11px; padding: 4px 10px;
+  border-radius: 6px; cursor: pointer; letter-spacing: 0;
+}
+.queue-stop-btn:hover { background: rgba(255,77,77,0.1); border-color: var(--red); }
+
+.queue-list { display: flex; flex-direction: column; gap: 0; margin-bottom: 12px; }
+
+.queue-item {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--panel-2); border: 1px solid var(--line);
+  border-radius: 10px; padding: 10px 10px 10px 0;
+  margin-bottom: 0; position: relative;
+  transition: border-color 0.15s;
+}
+.queue-item.active-qi { border-color: var(--green); }
+.queue-item + .queue-item { border-top-left-radius: 0; border-top-right-radius: 0; border-top: none; }
+.queue-item:not(:last-child) { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+
+.qi-color-bar {
+  width: 4px; align-self: stretch; border-radius: 0 2px 2px 0; flex-shrink: 0;
+  min-height: 44px;
+}
+.qi-body { flex: 1; min-width: 0; }
+.qi-name { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.qi-meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+.qi-gap {
+  display: flex; align-items: center; gap: 4px;
+  flex-shrink: 0;
+}
+.qi-gap-label { font-size: 10px; color: var(--muted); letter-spacing: 0.5px; white-space: nowrap; }
+.qi-gap-input {
+  width: 40px; background: var(--bg); border: 1px solid var(--line);
+  border-radius: 6px; color: var(--text); padding: 4px 5px;
+  font-family: 'IBM Plex Mono', monospace; font-size: 11px; text-align: center;
+}
+.qi-gap-input:focus { outline: none; border-color: var(--blue); }
+.qi-gap-input:disabled { opacity: 0.35; cursor: not-allowed; }
+.qi-gap-unit { font-size: 10px; color: var(--muted); }
+
+.qi-del-btn {
+  background: transparent; border: none; color: var(--muted);
+  font-size: 16px; padding: 4px 6px; cursor: pointer; border-radius: 6px;
+  flex-shrink: 0;
+}
+.qi-del-btn:hover { color: var(--red); background: rgba(255,77,77,0.08); }
+
+/* Queue connector arrow between items */
+.queue-connector {
+  height: 0; display: flex; align-items: center; justify-content: center;
+  position: relative; margin: 0 0 0 4px; z-index: 1;
+}
+
+.queue-add-row {
+  display: flex; gap: 8px; margin-bottom: 4px;
+}
+.queue-select {
+  flex: 1; background: var(--panel-2); border: 1px solid var(--line);
+  border-radius: 8px; color: var(--text);
+  font-family: 'IBM Plex Mono', monospace; font-size: 12px;
+  padding: 9px 10px; cursor: pointer;
+}
+.queue-select:focus { outline: none; border-color: var(--blue); }
+.queue-select option { background: #1d212b; }
+.queue-select optgroup { background: #171a21; color: var(--muted); font-style: normal; }
+#addToQueueBtn { padding: 9px 14px; font-size: 13px; flex-shrink: 0; }
+
+.queue-summary {
+  font-size: 12px; color: var(--muted);
+  padding: 6px 2px; min-height: 18px;
+}
+.queue-summary b { color: var(--text); }
+
+.queue-btns {
+  display: flex; gap: 8px; margin-top: 12px;
+}
+#startQueueBtn { flex: 1; }
+#clearQueueBtn { color: var(--muted); font-size: 13px; padding: 12px 14px; }
+
 @media (max-width: 500px) { .legend { display: none; } }
 </style>
 </head>
@@ -317,6 +454,12 @@ button:active { transform: translateY(1px); }
   <div class="phase-name" id="phaseName">Pronto</div>
   <div class="phase-sub"  id="phaseSub">Inicie quando estiver pronto</div>
 
+  <!-- Queue position badge -->
+  <div class="queue-badge" id="queueBadge">
+    <span class="queue-badge-dot"></span>
+    <span id="queueBadgeText"></span>
+  </div>
+
   <div class="dial-wrap" id="dialWrap">
     <svg viewBox="0 0 200 200" id="svg" xmlns="http://www.w3.org/2000/svg">
       <defs>
@@ -333,7 +476,6 @@ button:active { transform: translateY(1px); }
               stroke="var(--red)" stroke-width="28" stroke-linecap="butt"
               stroke-dasharray="502.65" stroke-dashoffset="502.65" opacity="0"/>
       <circle id="dragRing" cx="100" cy="100" r="80" fill="none" stroke="transparent" stroke-width="44"/>
-      <!-- hub: hidden until timer starts -->
       <circle id="hubGlowEl" cx="100" cy="12" r="0" fill="white" opacity="0.25" filter="url(#hubGlow)"/>
       <circle id="hubDotEl"  cx="100" cy="12" r="0" fill="white" stroke="#0f1115" stroke-width="1.5"/>
     </svg>
@@ -348,7 +490,7 @@ button:active { transform: translateY(1px); }
   <div class="controls">
     <button class="btn-primary" id="startBtn">Iniciar</button>
     <button id="resetBtn">Reiniciar</button>
-    <button class="btn-icon" id="popupBtn" title="Abrir em janela flutuante">⧉</button>
+    <button class="btn-icon" id="popupBtn" title="Picture-in-Picture / janela flutuante">⧉</button>
     <button class="btn-icon" id="fsBtn" title="Tela cheia">⛶</button>
   </div>
 </div>
@@ -367,6 +509,7 @@ button:active { transform: translateY(1px); }
     <div class="tab-bar">
       <button class="tab-btn active" data-tab="phases">Fases</button>
       <button class="tab-btn" data-tab="presets">Presets</button>
+      <button class="tab-btn" data-tab="queue">Fila</button>
       <button class="tab-btn" data-tab="options">Opções</button>
     </div>
 
@@ -383,11 +526,45 @@ button:active { transform: translateY(1px); }
 
     <!-- Tab: Presets -->
     <div class="tab-content" id="tab-presets">
-      <p class="hint">Salve configurações de fases para reutilizar rapidamente.</p>
+      <div class="section-label">Modelos clínicos</div>
+      <div class="suggested-grid" id="suggestedGrid">
+        <!-- injected by JS -->
+      </div>
+      <hr class="section-divider" style="margin-top:4px">
+      <p class="hint" style="margin-bottom:10px">Salve configurações de fases para reutilizar rapidamente.</p>
       <div class="preset-list" id="presetList"></div>
       <div class="save-preset-row">
         <input type="text" id="presetNameInput" placeholder="Nome do preset…" maxlength="40">
         <button id="savePresetBtn">Salvar</button>
+      </div>
+    </div>
+
+    <!-- Tab: Fila -->
+    <div class="tab-content" id="tab-queue">
+      <p class="hint">Programe uma sequência de sessões. O timer avança automaticamente com intervalos configuráveis entre elas.</p>
+
+      <!-- Active queue indicator -->
+      <div class="queue-active-bar" id="queueActiveBar">
+        <span class="queue-active-label" id="queueActiveLabel">● Fila em andamento</span>
+        <button class="queue-stop-btn" id="stopQueueBtn">Encerrar fila</button>
+      </div>
+
+      <!-- Session list -->
+      <div class="queue-list" id="queueList"></div>
+
+      <!-- Add session row -->
+      <div class="queue-add-row">
+        <select id="queueSessionSelect" class="queue-select">
+          <option value="">Escolher sessão para adicionar…</option>
+        </select>
+        <button id="addToQueueBtn">+</button>
+      </div>
+
+      <div class="queue-summary" id="queueSummary"></div>
+
+      <div class="queue-btns">
+        <button class="btn-primary" id="startQueueBtn">▶ Iniciar fila</button>
+        <button id="clearQueueBtn">Limpar</button>
       </div>
     </div>
 
@@ -452,9 +629,57 @@ button:active { transform: translateY(1px); }
 // ── Constants ──────────────────────────────────────────────
 const SYNC_KEY    = "timerConsulta_state";
 const PRESET_KEY  = "timerConsulta_presets";
+const QUEUE_KEY   = "timerConsulta_queue";
 const WINDOW_ID   = Math.random().toString(36).slice(2);
 const IS_POPUP    = window.opener !== null;
 const R = 80, SW = 28, C = 2 * Math.PI * R;
+
+// ── Suggested clinical presets (from psychiatric interview structure) ──
+const SUGGESTED_PRESETS = [
+  {
+    id: "inicial",
+    label: "Consulta Inicial",
+    meta: "50 min · 4 fases",
+    phases: [
+      { name: "Abertura",   min: 7,  color: "#2ecc71" },
+      { name: "Corpo",      min: 33, color: "#3aa0ff" },
+      { name: "Fechamento", min: 8,  color: "#f5c542" },
+      { name: "Terminação", min: 2,  color: "#ff4d4d" },
+    ]
+  },
+  {
+    id: "retorno",
+    label: "Retorno",
+    meta: "30 min · 4 fases",
+    phases: [
+      { name: "Abertura",   min: 3,  color: "#2ecc71" },
+      { name: "Evolução",   min: 20, color: "#3aa0ff" },
+      { name: "Fechamento", min: 5,  color: "#f5c542" },
+      { name: "Terminação", min: 2,  color: "#ff4d4d" },
+    ]
+  },
+  {
+    id: "pericia",
+    label: "Perícia",
+    meta: "60 min · 4 fases",
+    phases: [
+      { name: "Introdução",  min: 3,  color: "#2ecc71" },
+      { name: "Anamnese",    min: 30, color: "#3aa0ff" },
+      { name: "Status Mental",min: 17, color: "#f5c542" },
+      { name: "Fechamento",  min: 10, color: "#ff4d4d" },
+    ]
+  },
+  {
+    id: "crise",
+    label: "Crise/Urgência",
+    meta: "30 min · 3 fases",
+    phases: [
+      { name: "Abertura",       min: 2,  color: "#2ecc71" },
+      { name: "Avaliação Risco",min: 22, color: "#ff4d4d" },
+      { name: "Plano Segurança",min: 6,  color: "#f5c542" },
+    ]
+  },
+];
 
 // ── Defaults ───────────────────────────────────────────────
 const DEFAULT_PHASES = [
@@ -478,9 +703,18 @@ let running = false, paused = false;
 let elapsedBeforePause = 0, startEpoch = 0;
 let rafId = null;
 let currentPhaseIdx = -1, overState = 0, lastOverBeep = 0;
-let warnFiredFor = -1; // which phase index we already fired the warning for
+let warnFiredFor = -1;
 let isDragging = false, wasRunning = false;
 let wakeLock = null;
+
+// ── Queue state ────────────────────────────────────────────
+// Each item: { name, phases, intervalAfterMin }
+// intervalAfterMin = minutes to wait before starting next session (0 = immediate)
+let queueItems      = [];
+let queueActive     = false;
+let queueIndex      = -1;          // current session index in queue
+let isIntervalPhase = false;       // currently in interval between sessions
+let phasesOfNext    = null;        // phases of the upcoming session (saved during interval)
 
 // ── Elements ───────────────────────────────────────────────
 const $ = id => document.getElementById(id);
@@ -503,6 +737,8 @@ const startBtn  = $("startBtn");
 const resetBtn  = $("resetBtn");
 const dialWrap  = $("dialWrap");
 const svgEl     = $("svg");
+const queueBadge= $("queueBadge");
+const queueBadgeText = $("queueBadgeText");
 
 // ── Audio ──────────────────────────────────────────────────
 let audioCtx = null;
@@ -546,6 +782,19 @@ function sigOver() {
 function sigOverHard() {
   if (!soundEnabled) return;
   beep(180, 0.5, 0, "square", 0.22); beep(140, 0.5, 0.18, "square", 0.22);
+}
+// New: session complete sound (3 ascending tones - marks end of consultation)
+function sigSessionComplete() {
+  if (!soundEnabled) return;
+  beep(880,  0.20, 0,    "sine", 0.28);
+  beep(1100, 0.20, 0.22, "sine", 0.25);
+  beep(1320, 0.35, 0.44, "sine", 0.22);
+}
+// New: interval ending / next session starting
+function sigIntervalEnd() {
+  if (!soundEnabled) return;
+  beep(660, 0.15, 0,   "sine", 0.20);
+  beep(880, 0.25, 0.15,"sine", 0.20);
 }
 
 // ── Vibration ──────────────────────────────────────────────
@@ -706,6 +955,104 @@ function checkWarnAhead(elapsedSec) {
   }
 }
 
+// ── Queue badge update ─────────────────────────────────────
+function updateQueueBadge() {
+  if (!queueActive || queueIndex < 0) {
+    queueBadge.classList.remove("visible","interval");
+    return;
+  }
+  queueBadge.classList.add("visible");
+  if (isIntervalPhase) {
+    const nextName = queueItems[queueIndex]?.name || "próxima";
+    queueBadgeText.textContent = `Intervalo · ${nextName}`;
+    queueBadge.classList.add("interval");
+  } else {
+    queueBadgeText.textContent = `Sessão ${queueIndex + 1} de ${queueItems.length}`;
+    queueBadge.classList.remove("interval");
+  }
+  // also update panel active bar if open
+  const bar   = $("queueActiveBar");
+  const label = $("queueActiveLabel");
+  if (bar && label) {
+    bar.classList.add("visible");
+    label.textContent = isIntervalPhase
+      ? `● Intervalo — próxima: ${queueItems[queueIndex]?.name || ""}`
+      : `● Sessão ${queueIndex + 1} de ${queueItems.length}`;
+  }
+}
+
+// ── Queue session end handler ──────────────────────────────
+function onQueueSessionEnd() {
+  // Case A: we just finished an interval phase → start next session
+  if (isIntervalPhase) {
+    isIntervalPhase = false;
+    phases = phasesOfNext;
+    phasesOfNext = null;
+    renderAll();
+    reset();
+    sigIntervalEnd();
+    doFlash();
+    // slight delay to let display update before starting
+    setTimeout(() => { start(); updateQueueBadge(); }, 120);
+    return;
+  }
+
+  // Case B: we just finished a consultation session
+  sigSessionComplete();
+  doFlash();
+  vibrate(vibratePattern);
+
+  const nextIndex = queueIndex + 1;
+
+  // No more sessions → queue complete
+  if (nextIndex >= queueItems.length) {
+    queueActive = false;
+    queueIndex  = -1;
+    isIntervalPhase = false;
+    phasesOfNext = null;
+    updateQueueBadge();
+    const bar = $("queueActiveBar");
+    if (bar) bar.classList.remove("visible");
+    reset();
+    phaseName.textContent = "Fila concluída";
+    phaseName.style.color = "var(--green)";
+    const n = queueItems.length;
+    phaseSub.textContent  = `${n} sessão${n !== 1 ? "ões" : ""} concluída${n !== 1 ? "s" : ""}`;
+    document.title = "✓ Fila concluída · Timer";
+    renderQueue();
+    return;
+  }
+
+  // Has next session
+  const currentItem = queueItems[queueIndex];
+  const nextItem    = queueItems[nextIndex];
+  const gapMin      = currentItem.intervalAfterMin || 0;
+
+  // Advance queue pointer to next session
+  queueIndex = nextIndex;
+  phasesOfNext = nextItem.phases.map(p => ({...p}));
+
+  if (gapMin > 0) {
+    // Start interval countdown
+    isIntervalPhase = true;
+    phases = [{
+      name:  "Intervalo",
+      min:   gapMin,
+      color: "#546e7a",
+    }];
+    renderAll();
+    reset();
+    setTimeout(() => { start(); updateQueueBadge(); renderQueue(); }, 120);
+  } else {
+    // No gap → jump straight to next session
+    phases = phasesOfNext;
+    phasesOfNext = null;
+    renderAll();
+    reset();
+    setTimeout(() => { start(); updateQueueBadge(); renderQueue(); }, 120);
+  }
+}
+
 // ── Display update ─────────────────────────────────────────
 function updateDisplay(elapsedSec) {
   const tot = totalSec(), bounds = phaseBoundaries(), over = elapsedSec >= tot;
@@ -719,14 +1066,25 @@ function updateDisplay(elapsedSec) {
       currentPhaseIdx = idx;
       if (!isDragging) onEnterPhase(idx, b);
       else highlightLegend(idx);
-      warnFiredFor = -1; // reset warn for new phase
+      warnFiredFor = -1;
     }
     if (!isDragging) checkWarnAhead(elapsedSec);
     phaseName.textContent = b.name; phaseName.style.color = b.color;
     phaseSub.textContent  = `Fase ${idx+1} de ${bounds.length}`;
+    // Override sub for interval phase
+    if (isIntervalPhase && queueActive && queueItems[queueIndex]) {
+      phaseName.textContent = "Intervalo";
+      phaseName.style.color = "var(--muted)";
+      phaseSub.textContent  = `Próxima: ${queueItems[queueIndex].name}`;
+    }
     timeBig.textContent   = fmt(b.end - elapsedSec); timeBig.style.color = b.color;
-    timeLabel.textContent = "Restante nesta fase";
-    phaseClock.innerHTML  = `Total restante <b>${fmt(tot - elapsedSec)}</b>`;
+    if (isIntervalPhase) timeBig.style.color = "var(--muted)";
+    timeLabel.textContent = isIntervalPhase ? "Pausa" : "Restante nesta fase";
+    if (isIntervalPhase) {
+      phaseClock.innerHTML = `próxima: <b>${queueItems[queueIndex]?.name || ""}</b>`;
+    } else {
+      phaseClock.innerHTML  = `Total restante <b>${fmt(tot - elapsedSec)}</b>`;
+    }
     setHub(elapsedSec / tot, true);
     overRing.setAttribute("opacity","0");
     stage.classList.remove("overrun","overrun-hard"); overState = 0;
@@ -734,6 +1092,16 @@ function updateDisplay(elapsedSec) {
   } else {
     const overSec = elapsedSec - tot, hard = overSec >= 600;
     currentPhaseIdx = bounds.length;
+
+    // ── Queue intercept: catch the very first moment of overrun ──
+    if (queueActive && !isDragging && overState === 0) {
+      overState = 1; // mark so we don't re-trigger
+      running = false;
+      cancelAnimationFrame(rafId);
+      onQueueSessionEnd();
+      return; // exit before showing any overrun UI
+    }
+
     phaseName.textContent = hard ? "Atraso significativo" : "Tempo esgotado";
     phaseName.style.color = hard ? "#fff" : "var(--red)";
     phaseSub.textContent  = hard ? "Mais de 10 min além do previsto" : "Encerrar a consulta";
@@ -810,6 +1178,7 @@ function reset() {
   setHub(0, false);
   updateSweeps(0); highlightLegend(-1);
   releaseWakeLock(); broadcastState(); document.title = "Timer de Consulta";
+  updateQueueBadge();
 }
 
 startBtn.addEventListener("click", () => {
@@ -817,7 +1186,14 @@ startBtn.addEventListener("click", () => {
   else if (running) pause();
   else if (paused) resume();
 });
-resetBtn.addEventListener("click", reset);
+resetBtn.addEventListener("click", () => {
+  // If queue is active and running, reset current session only (keep queue)
+  if (queueActive) {
+    reset();
+    return;
+  }
+  reset();
+});
 
 document.addEventListener("keydown", e => {
   if (e.code === "Space") { e.preventDefault(); startBtn.click(); }
@@ -887,12 +1263,153 @@ dialWrap.addEventListener("mouseleave", () => {
   if (!isDragging) dragHint.classList.remove("visible");
 });
 
-// ── Popup ──────────────────────────────────────────────────
-$("popupBtn").addEventListener("click", () => {
+// ── Popup / Picture-in-Picture ─────────────────────────────
+
+// Monta um viewer leve dentro da janela Document PiP.
+// NÃO instancia o app completo — só lê localStorage e renderiza.
+// Isso evita o loop de sync e o reinício contínuo.
+function buildPipViewer(pip) {
+  pip.document.head.innerHTML = '<meta charset="UTF-8"><title>Timer · PiP</title>';
+
+  const fontLink = pip.document.createElement('link');
+  fontLink.rel = 'stylesheet';
+  fontLink.href = 'https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap';
+  pip.document.head.appendChild(fontLink);
+
+  const style = pip.document.createElement('style');
+  style.textContent = `
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{background:#0f1115;color:#e8eaed;display:flex;flex-direction:column;
+         align-items:center;justify-content:center;height:100vh;overflow:hidden;
+         font-family:'IBM Plex Mono',monospace;user-select:none;}
+    .pn{font-size:12px;letter-spacing:2px;text-transform:uppercase;margin-bottom:5px;transition:color .4s;}
+    .ps{font-size:10px;color:#8a909e;letter-spacing:1px;text-transform:uppercase;margin-bottom:14px;}
+    .pd{position:relative;width:210px;height:210px;}
+    .pd svg{width:100%;height:100%;transform:rotate(-90deg);}
+    .pc{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+    .pt{font-size:48px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1;transition:color .4s;}
+    .pl{font-size:9px;color:#8a909e;letter-spacing:2px;text-transform:uppercase;margin-top:8px;}`;
+  pip.document.head.appendChild(style);
+
+  pip.document.body.innerHTML = `
+    <div class="pn" id="pn">Pronto</div>
+    <div class="ps" id="ps">—</div>
+    <div class="pd">
+      <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="100" cy="100" r="80" fill="none" stroke="#1c2030" stroke-width="28"/>
+        <g id="pb"></g><g id="pw"></g>
+      </svg>
+      <div class="pc">
+        <div class="pt" id="pt">--:--</div>
+        <div class="pl" id="pl"></div>
+      </div>
+    </div>`;
+
+  // Viewer script injetado — referencia SYNC_KEY do escopo externo
+  const script = pip.document.createElement('script');
+  script.textContent = `(function(){
+    const KEY=${JSON.stringify(SYNC_KEY)},R=80,SW=28,C=2*Math.PI*R;
+    const eN=document.getElementById('pn'),eS=document.getElementById('ps'),
+          eT=document.getElementById('pt'),eL=document.getElementById('pl'),
+          eBg=document.getElementById('pb'),eSw=document.getElementById('pw');
+    let state=null,lastSig='';
+
+    function fmt(s){s=Math.max(0,Math.round(s));return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');}
+    function totSec(ph){return ph.reduce((a,p)=>a+p.min*60,0);}
+    function bounds(ph){let a=0;return ph.map(p=>{const s=a,e=a+p.min*60;a=e;return{...p,start:s,end:e};});}
+
+    function mkCircle(col,f0,f1,op){
+      const l=(f1-f0)*C,el=document.createElementNS('http://www.w3.org/2000/svg','circle');
+      ['cx','cy'].forEach((k,i)=>el.setAttribute(k,'100'));
+      el.setAttribute('r',R);el.setAttribute('fill','none');
+      el.setAttribute('stroke',col);el.setAttribute('stroke-width',SW);
+      el.setAttribute('stroke-dasharray',l+' '+(C-l));
+      el.setAttribute('stroke-dashoffset',-f0*C);
+      el.setAttribute('opacity',op);el.setAttribute('stroke-linecap','butt');
+      return el;
+    }
+
+    function rebuild(ph){
+      eBg.innerHTML='';eSw.innerHTML='';
+      const T=totSec(ph),bs=bounds(ph),G=0.004;
+      bs.forEach((b,i)=>{
+        const f0=b.start/T,f1=b.end/T,gs=i>0?G/2:0,ge=i<bs.length-1?G/2:0;
+        eBg.appendChild(mkCircle(b.color,f0+gs,f1-ge,0.18));
+        const sw=mkCircle(b.color,f0+gs,f1-ge,0);sw.id='sw'+i;eSw.appendChild(sw);
+      });
+    }
+
+    function draw(){
+      if(!state)return;
+      const ph=state.phases,T=totSec(ph),bs=bounds(ph),G=0.004;
+      const sec=(state.elapsedMs+(state.running?(Date.now()-state.ts):0))/1000;
+      const over=sec>=T;
+      bs.forEach((b,i)=>{
+        const el=document.getElementById('sw'+i);if(!el)return;
+        const f0=b.start/T,f1=b.end/T,
+              gs=i>0?G/2:0,ge=i<bs.length-1?G/2:0,
+              p0=f0+gs,p1=f1-ge,pL=p1-p0;
+        if(sec<=b.start){
+          el.setAttribute('stroke-dasharray',pL*C+' '+(C-pL*C));
+          el.setAttribute('stroke-dashoffset',-p0*C);el.setAttribute('opacity','0.82');
+        } else if(sec>=b.end){
+          el.setAttribute('stroke-dasharray','0 502.65');el.setAttribute('opacity','0');
+        } else {
+          const pr=(sec-b.start)/(b.end-b.start),cf=p0+pL*pr,rl=(p1-cf)*C;
+          el.setAttribute('stroke-dasharray',rl+' '+(C-rl));
+          el.setAttribute('stroke-dashoffset',-cf*C);el.setAttribute('opacity','1');
+        }
+      });
+      if(!over){
+        const idx=bs.findIndex(b=>sec<b.end),b=bs[idx];
+        eN.textContent=b.name;eN.style.color=b.color;
+        eT.textContent=fmt(b.end-sec);eT.style.color=b.color;
+        eS.textContent=state.running?'Em andamento':(state.paused?'Pausado':'Pronto');
+        eL.textContent='Total restante '+fmt(T-sec);
+      } else {
+        eN.textContent='Tempo esgotado';eN.style.color='#ff4d4d';
+        eT.textContent='+'+fmt(sec-T);eT.style.color='#ff7849';
+        eS.textContent='Encerrar a consulta';eL.textContent='';
+      }
+    }
+
+    function apply(s){
+      const sig=JSON.stringify(s.phases);
+      if(sig!==lastSig){rebuild(s.phases);lastSig=sig;}
+      state=s;
+    }
+
+    try{const r=localStorage.getItem(KEY);if(r)apply(JSON.parse(r));}catch(e){}
+    window.addEventListener('storage',e=>{
+      if(e.key!==KEY)return;
+      try{apply(JSON.parse(e.newValue));}catch(e){}
+    });
+    (function tick(){draw();requestAnimationFrame(tick);})();
+  })();`;
+  pip.document.body.appendChild(script);
+}
+
+$("popupBtn").addEventListener("click", async () => {
   broadcastState();
-  const html = document.documentElement.outerHTML;
-  const url  = URL.createObjectURL(new Blob([html], { type: "text/html" }));
-  const w = window.open(url,"TimerConsulta","width=430,height=560,resizable=yes,scrollbars=no,toolbar=no,menubar=no,location=no");
+
+  // Document Picture-in-Picture (Chrome/Edge 116+) — flutua sobre outros apps
+  if ('documentPictureInPicture' in window) {
+    try {
+      const pip = await window.documentPictureInPicture.requestWindow({
+        width: 280, height: 340,
+      });
+      buildPipViewer(pip);
+      return;
+    } catch (e) {
+      // Usuário cancelou ou não suportado — cai no popup clássico
+    }
+  }
+
+  // Fallback: popup completo via blob URL (Firefox, Safari, Chrome antigo)
+  const url = URL.createObjectURL(
+    new Blob([document.documentElement.outerHTML], { type: "text/html" })
+  );
+  const w = window.open(url, "TimerConsulta", "width=320,height=380,resizable=yes,scrollbars=no,toolbar=no,menubar=no,location=no");
   if (!w) alert("Permita pop-ups nas configurações do navegador.");
 });
 
@@ -1003,9 +1520,9 @@ function renderPresets() {
       const idx = +e.currentTarget.dataset.load;
       const preset = loadPresets()[idx];
       if (!preset) return;
+      if (queueActive) stopQueue();
       phases = preset.phases.map(p=>({...p}));
       renderAll(); reset();
-      // Switch to phases tab
       switchTab("phases");
     });
   });
@@ -1014,6 +1531,7 @@ function renderPresets() {
       const idx = +e.currentTarget.dataset.del;
       const presets = loadPresets(); presets.splice(idx, 1);
       savePresetsToStorage(presets); renderPresets();
+      renderQueueSelect();
     });
   });
 }
@@ -1027,15 +1545,233 @@ $("savePresetBtn").addEventListener("click", () => {
   savePresetsToStorage(presets);
   nameEl.value = "";
   renderPresets();
+  renderQueueSelect();
 });
 $("presetNameInput").addEventListener("keydown", e => {
   if (e.key === "Enter") $("savePresetBtn").click();
 });
 
+// ── Suggested presets ──────────────────────────────────────
+function renderSuggestedPresets() {
+  const grid = $("suggestedGrid");
+  grid.innerHTML = "";
+  SUGGESTED_PRESETS.forEach(sp => {
+    const btn = document.createElement("button");
+    btn.className = "suggested-btn";
+    btn.innerHTML = `<span class="sb-name">${sp.label}</span><span class="sb-meta">${sp.meta}</span>`;
+    btn.addEventListener("click", () => {
+      if (queueActive) stopQueue();
+      phases = sp.phases.map(p=>({...p}));
+      renderAll(); reset();
+      switchTab("phases");
+    });
+    grid.appendChild(btn);
+  });
+}
+
+// ── Queue CRUD ─────────────────────────────────────────────
+function loadQueueItems() {
+  try { return JSON.parse(localStorage.getItem(QUEUE_KEY)) || []; } catch(e) { return []; }
+}
+function saveQueueItems() {
+  try { localStorage.setItem(QUEUE_KEY, JSON.stringify(queueItems)); } catch(e) {}
+}
+
+// Build the option list for the "add to queue" dropdown
+function renderQueueSelect() {
+  const sel = $("queueSessionSelect");
+  sel.innerHTML = `<option value="">Escolher sessão para adicionar…</option>`;
+
+  // Suggested group
+  const grp1 = document.createElement("optgroup");
+  grp1.label = "Modelos clínicos";
+  SUGGESTED_PRESETS.forEach((sp, i) => {
+    const tot = sp.phases.reduce((s,p)=>s+p.min,0);
+    const opt = document.createElement("option");
+    opt.value = "suggested:" + i;
+    opt.textContent = `${sp.label} (${tot} min)`;
+    grp1.appendChild(opt);
+  });
+  sel.appendChild(grp1);
+
+  // Saved presets group
+  const presets = loadPresets();
+  if (presets.length > 0) {
+    const grp2 = document.createElement("optgroup");
+    grp2.label = "Presets salvos";
+    presets.forEach((p, i) => {
+      const tot = p.phases.reduce((s,ph)=>s+ph.min,0);
+      const opt = document.createElement("option");
+      opt.value = "preset:" + i;
+      opt.textContent = `${p.name} (${tot} min)`;
+      grp2.appendChild(opt);
+    });
+    sel.appendChild(grp2);
+  }
+}
+
+function renderQueue() {
+  const list = $("queueList");
+  list.innerHTML = "";
+
+  if (queueItems.length === 0) {
+    list.innerHTML = `<p class="hint" style="text-align:center;padding:14px 0;margin:0">
+      Nenhuma sessão na fila.<br>Adicione sessões usando o seletor abaixo.
+    </p>`;
+    $("queueSummary").innerHTML = "";
+    return;
+  }
+
+  queueItems.forEach((item, i) => {
+    const tot = item.phases.reduce((s,p)=>s+p.min,0);
+    // First phase color for the color bar
+    const col = item.phases[0]?.color || "#546e7a";
+    const isActive = queueActive && i === queueIndex;
+    const isLast   = i === queueItems.length - 1;
+
+    const div = document.createElement("div");
+    div.className = "queue-item" + (isActive ? " active-qi" : "");
+
+    div.innerHTML = `
+      <div class="qi-color-bar" style="background:${col}"></div>
+      <div class="qi-body">
+        <div class="qi-name">${item.name}</div>
+        <div class="qi-meta">${item.phases.length} fases · ${tot} min</div>
+      </div>
+      <div class="qi-gap">
+        <span class="qi-gap-label">↓</span>
+        <input type="number" class="qi-gap-input" value="${item.intervalAfterMin || 0}"
+               min="0" max="120" data-qi="${i}" ${isLast ? "disabled" : ""}>
+        <span class="qi-gap-unit">min</span>
+      </div>
+      <button class="qi-del-btn" data-qi-del="${i}">×</button>`;
+    list.appendChild(div);
+  });
+
+  // Summary
+  const totalSession = queueItems.reduce((s,it) => s + it.phases.reduce((a,p)=>a+p.min,0), 0);
+  const totalGap     = queueItems.slice(0,-1).reduce((s,it) => s + (it.intervalAfterMin||0), 0);
+  const totalAll     = totalSession + totalGap;
+  $("queueSummary").innerHTML =
+    `<b>${queueItems.length}</b> sessão${queueItems.length!==1?"ões":""} · ` +
+    (totalGap > 0 ? `<b>${totalGap}</b> min de intervalos · ` : "") +
+    `total <b>${totalAll}</b> min`;
+
+  // Interval input events
+  list.querySelectorAll(".qi-gap-input").forEach(inp => {
+    inp.addEventListener("change", e => {
+      const idx = +e.target.dataset.qi;
+      queueItems[idx].intervalAfterMin = Math.max(0, Number(e.target.value)||0);
+      saveQueueItems();
+      renderQueue();
+    });
+  });
+
+  // Delete button events
+  list.querySelectorAll("[data-qi-del]").forEach(btn => {
+    btn.addEventListener("click", e => {
+      const idx = +e.currentTarget.dataset.qiDel;
+      queueItems.splice(idx, 1);
+      saveQueueItems();
+      renderQueue();
+    });
+  });
+}
+
+function addSessionToQueue(sessionData) {
+  queueItems.push({
+    name: sessionData.name,
+    phases: sessionData.phases.map(p=>({...p})),
+    intervalAfterMin: 0,
+  });
+  saveQueueItems();
+  renderQueue();
+}
+
+$("addToQueueBtn").addEventListener("click", () => {
+  const sel = $("queueSessionSelect");
+  const val = sel.value;
+  if (!val) return;
+
+  let sessionData = null;
+  if (val.startsWith("suggested:")) {
+    const idx = +val.split(":")[1];
+    const sp  = SUGGESTED_PRESETS[idx];
+    if (sp) sessionData = { name: sp.label, phases: sp.phases };
+  } else if (val.startsWith("preset:")) {
+    const idx = +val.split(":")[1];
+    const presets = loadPresets();
+    if (presets[idx]) sessionData = { name: presets[idx].name, phases: presets[idx].phases };
+  }
+
+  if (sessionData) {
+    addSessionToQueue(sessionData);
+    sel.value = "";
+  }
+});
+
+// Start queue
+$("startQueueBtn").addEventListener("click", () => {
+  if (queueItems.length === 0) return;
+  queueActive     = true;
+  queueIndex      = 0;
+  isIntervalPhase = false;
+  phasesOfNext    = null;
+
+  phases = queueItems[0].phases.map(p=>({...p}));
+  renderAll();
+  reset();
+  start();
+  updateQueueBadge();
+  renderQueue();
+  closePanel();
+
+  const bar = $("queueActiveBar");
+  if (bar) bar.classList.add("visible");
+});
+
+// Stop queue
+function stopQueue() {
+  queueActive     = false;
+  queueIndex      = -1;
+  isIntervalPhase = false;
+  phasesOfNext    = null;
+  updateQueueBadge();
+  const bar = $("queueActiveBar");
+  if (bar) bar.classList.remove("visible");
+  renderQueue();
+}
+$("stopQueueBtn").addEventListener("click", () => {
+  stopQueue();
+  reset();
+  // Restore default phases if we were in interval
+  if (!running && !paused) {
+    phases = DEFAULT_PHASES.map(p=>({...p}));
+    renderAll(); reset();
+  }
+});
+
+// Clear queue
+$("clearQueueBtn").addEventListener("click", () => {
+  if (queueActive) stopQueue();
+  queueItems = [];
+  saveQueueItems();
+  renderQueue();
+});
+
 // ── Panel & tabs ───────────────────────────────────────────
 const panel    = $("panel");
 const backdrop = $("panelBackdrop");
-function openPanel()  { panel.classList.add("open");    backdrop.classList.add("visible"); renderPresets(); }
+function openPanel()  {
+  panel.classList.add("open");
+  backdrop.classList.add("visible");
+  renderPresets();
+  renderQueue();
+  renderQueueSelect();
+  // Sync active bar
+  const bar = $("queueActiveBar");
+  if (bar) { bar.classList.toggle("visible", queueActive); }
+}
 function closePanel() { panel.classList.remove("open"); backdrop.classList.remove("visible"); }
 $("settingsToggle").addEventListener("click", () => panel.classList.contains("open") ? closePanel() : openPanel());
 $("panelClose").addEventListener("click", closePanel);
@@ -1102,9 +1838,16 @@ if ('serviceWorker' in navigator) {
 }
 
 // ── Init ───────────────────────────────────────────────────
+// Load queue from storage
+queueItems = loadQueueItems();
+
 renderAll();
 reset();
 syncOptionsUI();
+renderSuggestedPresets();
+renderQueueSelect();
+renderQueue();
+
 })();
 </script>
 </body>
